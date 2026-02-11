@@ -1,7 +1,7 @@
 import { Bot } from 'grammy'
 import { CONFIG } from '../config.js'
 import { getSession, setSession } from './session.js'
-import { infirmaryKeyboard } from './keyboards.js'
+import { infirmaryKeyboard, mainMenuKeyboard } from './keyboards.js'
 import { getUserNationalCode, upsertUserNationalCode } from '../storage/user.repo.js'
 import { validatePatient, searchInfirmaryTiming } from '../services/hospital.client.js'
 import { addWatch, deactivateWatch, listActiveWatchesByUser } from '../storage/watch.repo.js'
@@ -29,15 +29,37 @@ export function createBot() {
     console.log(`📩 /start received from user ${ctx.from?.id}`)
     const uid = ctx.from?.id
     if (!uid) return
-
+    
+    const userName = ctx.from?.first_name || 'کاربر'
     const nc = getUserNationalCode(uid)
+    
+    // Welcome message
+    const welcomeMessage = 
+      `👋 سلام ${userName} عزیز!\n\n` +
+      `🏥 به ربات نوبت‌دهی بیمارستان میلاد خوش آمدید.\n\n` +
+      `📌 *قابلیت‌های ربات:*\n` +
+      `• مشاهده لیست درمانگاه‌ها\n` +
+      `• جستجوی نوبت فوری\n` +
+      `• دریافت اطلاع‌رسانی زمانی که نوبت باز شد\n\n` +
+      `⚠️ *نکته مهم:*\n` +
+      `برای دریافت نوبت، باید *کد ملی خودتان* را وارد کنید.\n` +
+      `این کد برای بررسی صلاحیت دریافت نوبت در سامانه بیمارستان استفاده می‌شود.`
+    
     if (!nc) {
       setSession(uid, { step: 'await_national_code' })
-      await ctx.reply('کد ملی ۱۰ رقمی را وارد کنید:')
+      await ctx.reply(welcomeMessage, { parse_mode: 'Markdown' })
+      await ctx.reply(
+        '✏️ *لطفاً کد ملی ۱۰ رقمی خود را وارد کنید:*',
+        { parse_mode: 'Markdown' }
+      )
       return
     }
 
-    await ctx.reply('درمانگاه را انتخاب کنید:', { reply_markup: infirmaryKeyboard() })
+    // User already registered
+    await ctx.reply(
+      welcomeMessage + '\n\n✅ *کد ملی شما:* `' + nc + '`\n\nدرمانگاه مورد نظر را انتخاب کنید:',
+      { parse_mode: 'Markdown', reply_markup: infirmaryKeyboard() }
+    )
   })
 
   bot.on('message:text', async (ctx) => {
@@ -54,20 +76,58 @@ export function createBot() {
 
     if (sess.step === 'await_national_code') {
       if (!isValidNationalCode(text)) {
-        await ctx.reply('❌ کد ملی نامعتبر است. لطفاً یک عدد ۱۰ رقمی وارد کنید.')
+        await ctx.reply(
+          '❌ *کد ملی نامعتبر است*\n\n' +
+          '✏️ لطفاً یک عدد ۱۰ رقمی وارد کنید:\n' +
+          'مثال: `0310751942`',
+          { parse_mode: 'Markdown' }
+        )
         return
       }
+      
+      // Show loading message
+      const loadingMsg = await ctx.reply('⏳ در حال بررسی کد ملی در سامانه بیمارستان...')
+      
       try {
         const p = await validatePatient(text)
+        
+        // Delete loading message
+        await ctx.api.deleteMessage(uid, loadingMsg.message_id).catch(() => {})
+        
         if (!p.allowToSetTimming) {
-          await ctx.reply('❌ در حال حاضر امکان دریافت نوبت برای این کد ملی وجود ندارد. (allowToSetTimming=false)')
+          await ctx.reply(
+            '❌ *امکان دریافت نوبت وجود ندارد*\n\n' +
+            'برای این کد ملی در حال حاضر امکان گرفتن نوبت وجود ندارد.\n' +
+            'ممکن است:\n' +
+            '• قبلاً نوبت فعال داشته باشید\n' +
+            '• کد ملی در سامانه ثبت نشده باشد\n\n' +
+            'لطفاً با پذیرش بیمارستان تماس بگیرید.',
+            { parse_mode: 'Markdown' }
+          )
           return
         }
+        
         upsertUserNationalCode(uid, text)
         setSession(uid, { step: 'idle' })
-        await ctx.reply('✅ ثبت شد. حالا درمانگاه را انتخاب کنید:', { reply_markup: infirmaryKeyboard() })
-      } catch {
-        await ctx.reply('❌ خطا در بررسی کد ملی. دوباره تلاش کنید.')
+        
+        await ctx.reply(
+          `✅ *کد ملی با موفقیت ثبت شد*\n\n` +
+          `👤 نام: ${p.fullName || 'نامشخص'}\n` +
+          `🆔 کد ملی: \`${text}\`\n\n` +
+          `حالا می‌توانید درمانگاه مورد نظر را انتخاب کنید:`,
+          { parse_mode: 'Markdown', reply_markup: infirmaryKeyboard() }
+        )
+      } catch (err) {
+        // Delete loading message
+        await ctx.api.deleteMessage(uid, loadingMsg.message_id).catch(() => {})
+        
+        console.error('Error validating patient:', err)
+        await ctx.reply(
+          '❌ *خطا در بررسی کد ملی*\n\n' +
+          'ارتباط با سامانه بیمارستان برقرار نشد.\n' +
+          'لطفاً دوباره تلاش کنید.',
+          { parse_mode: 'Markdown' }
+        )
       }
     }
   })
@@ -157,6 +217,35 @@ export function createBot() {
     deactivateWatch(uid, infirmaryId)
     await ctx.answerCallbackQuery({ text: 'غیرفعال شد' })
     await ctx.reply('✅ خبررسانی برای این درمانگاه غیرفعال شد.')
+  })
+
+  bot.callbackQuery('action:show_infirmaries', async (ctx) => {
+    const uid = ctx.from?.id
+    if (!uid) return
+    await ctx.answerCallbackQuery({ text: 'درمانگاه‌ها' })
+    await ctx.reply('🏥 *لیست درمانگاه‌های موجود:*', { 
+      parse_mode: 'Markdown',
+      reply_markup: infirmaryKeyboard() 
+    })
+  })
+
+  bot.callbackQuery('action:help', async (ctx) => {
+    await ctx.answerCallbackQuery({ text: 'راهنما' })
+    await ctx.reply(
+      '📋 *راهنمای استفاده از ربات*\n\n' +
+      '*۱. ثبت کد ملی:*\n' +
+      'کد ملی ۱۰ رقمی خود را وارد کنید تا بتوانید نوبت بگیرید.\n\n' +
+      '*۲. انتخاب درمانگاه:*\n' +
+      'از لیست درمانگاه‌ها، مورد نظر خود را انتخاب کنید.\n\n' +
+      '*۳. جستجوی نوبت:*\n' +
+      'با زدن دکمه 🔍 جستجو، نوبت‌های موجود را ببینید.\n\n' +
+      '*۴. اطلاع‌رسانی:*\n' +
+      'با زدن 🔔 خبرم کن، ربات به محض باز شدن نوبت به شما پیام می‌دهد.\n\n' +
+      '*۵. لغو:*\n' +
+      'برای لغو اطلاع‌رسانی از ❌ لغو اطلاع‌رسانی استفاده کنید.\n\n' +
+      '🔄 برای شروع دوباره: /start',
+      { parse_mode: 'Markdown' }
+    )
   })
 
   // ---------------- Admin commands ----------------
