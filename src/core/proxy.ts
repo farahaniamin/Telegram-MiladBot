@@ -10,7 +10,9 @@ export function getTelegramApiUrl(): string {
 }
 
 export function getProxyAgent(): HttpsProxyAgent<string> | undefined {
-  if (isLocalProxyEnabled() && CONFIG.PROXY_URL) {
+  // Only use proxy when connecting directly to Telegram API
+  // When using Worker, we don't need proxy as Worker is not blocked
+  if (isLocalProxyEnabled() && !isApiWorkerEnabled() && CONFIG.PROXY_URL) {
     return new HttpsProxyAgent(CONFIG.PROXY_URL)
   }
   return undefined
@@ -24,7 +26,9 @@ export function getBotConfig() {
   
   if (agent) {
     config.client = {
-      agent: agent
+      baseFetchConfig: {
+        agent: agent
+      }
     }
   }
   
