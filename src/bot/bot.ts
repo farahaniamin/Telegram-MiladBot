@@ -6,11 +6,12 @@ import { getUserNationalCode, upsertUserNationalCode } from '../storage/user.rep
 import { validatePatient, searchInfirmaryTiming } from '../services/hospital.client.js'
 import { addWatch, deactivateWatch, listActiveWatchesByUser } from '../storage/watch.repo.js'
 import { getInfirmaryById, listInfirmaries, setInfirmaryCode } from '../storage/infirmary.repo.js'
-import { isAdmin } from './admin.js'
+import { isAdmin, getProxyStatus, setLocalProxyEnabled, setApiWorkerEnabled } from './admin.js'
 import { formatTimingMessage } from '../core/format.js'
 import { getIntervalMinutes, isPaused, setIntervalMinutes, setPaused } from '../storage/settings.repo.js'
+import { getBotConfig } from '../core/proxy.js'
 
-export const bot = new Bot(CONFIG.BOT_TOKEN)
+export const bot = new Bot(CONFIG.BOT_TOKEN, getBotConfig())
 
 function isValidNationalCode(input: string) {
   return /^\d{10}$/.test(input)
@@ -157,11 +158,13 @@ bot.command('status', async (ctx) => {
   const paused = isPaused()
   const infs = listInfirmaries()
   const configured = infs.filter(i => !!i.code).length
+  const proxyStatus = getProxyStatus()
   await ctx.reply(
     `🛠 وضعیت:\n` +
     `- interval: ${interval} دقیقه\n` +
     `- paused: ${paused ? 'بله' : 'خیر'}\n` +
-    `- درمانگاه‌ها: ${configured}/${infs.length} کددار`
+    `- درمانگاه‌ها: ${configured}/${infs.length} کددار\n\n` +
+    proxyStatus
   )
 })
 
@@ -207,4 +210,42 @@ bot.command('setcode', async (ctx) => {
   }
   setInfirmaryCode(id, code)
   await ctx.reply(`✅ code برای درمانگاه id=${id} تنظیم شد: ${code}`)
+})
+
+bot.command('proxy', async (ctx) => {
+  if (!isAdmin(ctx)) return
+  const parts = ctx.message?.text?.trim().split(/\s+/) ?? []
+  const state = parts[1]?.toLowerCase()
+  
+  if (state === 'on') {
+    setLocalProxyEnabled(true)
+    await ctx.reply('✅ Local Proxy فعال شد.\n⚠️ ری‌استارت نیاز است: /restart')
+  } else if (state === 'off') {
+    setLocalProxyEnabled(false)
+    await ctx.reply('✅ Local Proxy غیرفعال شد.\n⚠️ ری‌استارت نیاز است: /restart')
+  } else {
+    await ctx.reply('استفاده: /proxy <on|off>\nمثال: /proxy on')
+  }
+})
+
+bot.command('worker', async (ctx) => {
+  if (!isAdmin(ctx)) return
+  const parts = ctx.message?.text?.trim().split(/\s+/) ?? []
+  const state = parts[1]?.toLowerCase()
+  
+  if (state === 'on') {
+    setApiWorkerEnabled(true)
+    await ctx.reply('✅ API Worker فعال شد.\n⚠️ ری‌استارت نیاز است: /restart')
+  } else if (state === 'off') {
+    setApiWorkerEnabled(false)
+    await ctx.reply('✅ API Worker غیرفعال شد.\n⚠️ ری‌استارت نیاز است: /restart')
+  } else {
+    await ctx.reply('استفاده: /worker <on|off>\nمثال: /worker on')
+  }
+})
+
+bot.command('netstatus', async (ctx) => {
+  if (!isAdmin(ctx)) return
+  const status = getProxyStatus()
+  await ctx.reply(status)
 })

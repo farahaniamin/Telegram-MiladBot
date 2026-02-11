@@ -12,6 +12,7 @@
     "better-sqlite3": "^9.4.0",
     "dotenv": "^16.4.5",
     "grammy": "^1.24.0",
+    "https-proxy-agent": "^7.0.6",
     "lru-cache": "^10.2.2",
     "p-queue": "^8.0.1",
     "undici": "^6.18.1"

@@ -30,3 +30,25 @@ export function isPaused(): boolean {
 export function setPaused(paused: boolean) {
   setSetting('paused', paused ? '1' : '0')
 }
+
+export function isLocalProxyEnabled(): boolean {
+  const v = getSetting('use_local_proxy')
+  if (v === '1') return true
+  if (v === '0') return false
+  return CONFIG.DEFAULT_USE_LOCAL_PROXY
+}
+
+export function setLocalProxyEnabled(enabled: boolean) {
+  setSetting('use_local_proxy', enabled ? '1' : '0')
+}
+
+export function isApiWorkerEnabled(): boolean {
+  const v = getSetting('use_api_worker')
+  if (v === '1') return true
+  if (v === '0') return false
+  return CONFIG.DEFAULT_USE_API_WORKER
+}
+
+export function setApiWorkerEnabled(enabled: boolean) {
+  setSetting('use_api_worker', enabled ? '1' : '0')
+}

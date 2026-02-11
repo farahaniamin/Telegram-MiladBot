@@ -6,6 +6,13 @@ function parseIntEnv(key: string, fallback: number) {
   return Number.isFinite(n) ? n : fallback
 }
 
+function parseBoolEnv(key: string, fallback: boolean): boolean {
+  const v = process.env[key]?.toLowerCase()
+  if (v === 'on' || v === 'true' || v === '1') return true
+  if (v === 'off' || v === 'false' || v === '0') return false
+  return fallback
+}
+
 export const CONFIG = {
   BASE_URL: 'https://miladhospital.com',
   BOT_TOKEN: process.env.BOT_TOKEN ?? '',
@@ -20,5 +27,9 @@ export const CONFIG = {
   SYSTEM_NATIONAL_CODE: process.env.SYSTEM_NATIONAL_CODE ?? '0310751942',
   DEFAULT_INTERVAL_MIN: parseIntEnv('DEFAULT_INTERVAL_MIN', 5),
   JITTER_SEC: parseIntEnv('JITTER_SEC', 20),
-  CACHE_TTL_MS: 90_000
+  CACHE_TTL_MS: 90_000,
+  API_URL: process.env.API_URL ?? 'https://telegram.farahaniamin6.workers.dev',
+  PROXY_URL: process.env.PROXY_URL ?? 'http://127.0.0.1:3067',
+  DEFAULT_USE_LOCAL_PROXY: parseBoolEnv('USE_LOCAL_PROXY', true),
+  DEFAULT_USE_API_WORKER: parseBoolEnv('USE_API_WORKER', true)
 } as const
