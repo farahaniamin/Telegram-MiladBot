@@ -26,40 +26,56 @@ let isInitialized = false
 async function initialize(env: Env) {
   if (isInitialized) return
   
-  // Initialize config from environment
-  initializeConfig({
-    BOT_TOKEN: env.BOT_TOKEN,
-    ADMIN_IDS: env.ADMIN_IDS,
-    SYSTEM_NATIONAL_CODE: env.SYSTEM_NATIONAL_CODE,
-    DEFAULT_INTERVAL_MIN: env.DEFAULT_INTERVAL_MIN ?? undefined,
-    JITTER_SEC: env.JITTER_SEC ?? undefined
-  })
-  
-  // Set up database
-  setDatabase(env.DB)
-  await initializeDatabase(env.DB)
-  
-  // Seed infirmaries
-  await seedInfirmaries(INFIRMARY_SEED)
-  
-  // Validate system national code
-  console.log('🔍 Validating system national code...')
   try {
-    const p = await validatePatient(CONFIG.SYSTEM_NATIONAL_CODE)
-    console.log(`  - Patient: ${p.fullName}, allowToSetTimming: ${p.allowToSetTimming}`)
-    if (!p.allowToSetTimming) {
-      throw new Error('SYSTEM_NATIONAL_CODE is not allowed')
+    console.log('🚀 Starting initialization...')
+    
+    // Initialize config from environment
+    console.log('⚙️ Initializing config...')
+    initializeConfig({
+      BOT_TOKEN: env.BOT_TOKEN,
+      ADMIN_IDS: env.ADMIN_IDS,
+      SYSTEM_NATIONAL_CODE: env.SYSTEM_NATIONAL_CODE,
+      DEFAULT_INTERVAL_MIN: env.DEFAULT_INTERVAL_MIN ?? undefined,
+      JITTER_SEC: env.JITTER_SEC ?? undefined
+    })
+    console.log('✅ Config initialized')
+    
+    // Set up database
+    console.log('🗄️ Setting up database...')
+    setDatabase(env.DB)
+    await initializeDatabase(env.DB)
+    console.log('✅ Database initialized')
+    
+    // Seed infirmaries
+    console.log('🌱 Seeding infirmaries...')
+    await seedInfirmaries(INFIRMARY_SEED)
+    console.log('✅ Infirmaries seeded')
+    
+    // Validate system national code
+    console.log('🔍 Validating system national code...')
+    try {
+      const p = await validatePatient(CONFIG.SYSTEM_NATIONAL_CODE)
+      console.log(`  - Patient: ${p.fullName}, allowToSetTimming: ${p.allowToSetTimming}`)
+      if (!p.allowToSetTimming) {
+        throw new Error('SYSTEM_NATIONAL_CODE is not allowed')
+      }
+    } catch (e) {
+      console.error('❌ Failed to validate system national code:', e)
+      throw e
     }
-  } catch (e) {
-    console.error('❌ Failed to validate system national code:', e)
-    throw e
+    
+    // Create bot instance
+    console.log('🤖 Creating bot instance...')
+    bot = createBot()
+    console.log('✅ Bot instance created')
+    
+    isInitialized = true
+    console.log('✅ Initialization complete')
+  } catch (error) {
+    console.error('❌ Initialization failed:', error)
+    console.error('Error stack:', (error as Error).stack)
+    throw error
   }
-  
-  // Create bot instance
-  bot = createBot()
-  
-  isInitialized = true
-  console.log('✅ Initialization complete')
 }
 
 // Main fetch handler for HTTP requests (webhook)
@@ -89,8 +105,11 @@ export default {
       // Default response
       return new Response('Milad Appointment Bot - Cloudflare Workers', { status: 200 })
     } catch (error) {
-      console.error('Error in fetch handler:', error)
-      return new Response('Internal Server Error', { status: 500 })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : 'No stack trace'
+      console.error('Error in fetch handler:', errorMessage)
+      console.error('Stack:', errorStack)
+      return new Response(`Internal Server Error: ${errorMessage}`, { status: 500 })
     }
   },
   
@@ -129,7 +148,10 @@ export default {
       
       console.log('✅ Scheduled task completed')
     } catch (error) {
-      console.error('Error in scheduled handler:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : 'No stack trace'
+      console.error('Error in scheduled handler:', errorMessage)
+      console.error('Stack:', errorStack)
     }
   }
 }
