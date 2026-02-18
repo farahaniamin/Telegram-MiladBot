@@ -1,14 +1,14 @@
 import { CONFIG } from '../config.js'
 import { getActiveWatchesGrouped } from '../storage/watch.repo.js'
 import { getIntervalMinutes, isPaused } from '../storage/settings.repo.js'
-import { processWatchGroup, type NotifyFn } from './watcher.js'
+import { processWatchGroup, type NotifyWithButtonsFn } from './watcher.js'
 
 function jitterMs() {
   const j = CONFIG.JITTER_SEC * 1000
   return Math.floor((Math.random() * 2 - 1) * j)
 }
 
-export function startScheduler(notify: NotifyFn) {
+export function startScheduler(notifyWithButtons: NotifyWithButtonsFn) {
   let running = true
 
   async function tick() {
@@ -18,7 +18,7 @@ export function startScheduler(notify: NotifyFn) {
       if (!isPaused()) {
         const groups = getActiveWatchesGrouped()
         for (const g of groups) {
-          await processWatchGroup(g, notify)
+          await processWatchGroup(g, notifyWithButtons)
         }
       }
     } catch {

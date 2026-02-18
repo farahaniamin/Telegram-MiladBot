@@ -2,17 +2,30 @@ import { timingCache } from './cache.js'
 import { requestQueue } from './queue.js'
 import { searchInfirmaryTiming } from '../services/hospital.client.js'
 import { CONFIG } from '../config.js'
-import { deactivateAllByInfirmary } from '../storage/watch.repo.js'
-import { getInfirmaryById } from '../storage/infirmary.repo.js'
+import { 
+  getInfirmaryById 
+} from '../storage/infirmary.repo.js'
+import {
+  getWatchByUserAndInfirmary,
+  incrementNotificationCount,
+  setLastNotified,
+  recordNotificationEvent
+} from '../storage/watch.repo.js'
 
 export type WatchGroup = {
   infirmaryId: number
   userIds: number[]
 }
 
-export type NotifyFn = (userIds: number[], infirmaryTitle: string, results: any[]) => Promise<void>
+// New type for notification with buttons
+export type NotifyWithButtonsFn = (
+  userId: number, 
+  infirmaryTitle: string, 
+  results: any[],
+  watchId: number
+) => Promise<void>
 
-export async function processWatchGroup(group: WatchGroup, notify: NotifyFn) {
+export async function processWatchGroup(group: WatchGroup, notifyWithButtons: NotifyWithButtonsFn) {
   const infirmaryRow = getInfirmaryById(group.infirmaryId)
   if (!infirmaryRow) return
 
@@ -37,11 +50,31 @@ export async function processWatchGroup(group: WatchGroup, notify: NotifyFn) {
     const hasSlot = Array.isArray(results) && results.length > 0
     timingCache.set(group.infirmaryId, { hasSlot, checkedAt: Date.now() })
 
-    if (hasSlot) {
-      // notify all users watching this infirmary
-      await notify(group.userIds, infirmaryRow.title, results)
-      // deactivate watches to prevent repeated spam
-      deactivateAllByInfirmary(group.infirmaryId)
+    if (!hasSlot) return
+
+    // SIMPLIFIED: Process each user individually
+    for (const userId of group.userIds) {
+      await processUserWatch(userId, group.infirmaryId, infirmaryRow.title, results, notifyWithButtons)
     }
   })
+}
+
+async function processUserWatch(
+  userId: number,
+  infirmaryId: number,
+  infirmaryTitle: string,
+  results: any[],
+  notifyWithButtons: NotifyWithButtonsFn
+) {
+  const watch = getWatchByUserAndInfirmary(userId, infirmaryId)
+  if (!watch) return
+
+  // Simplified: Always send notification with buttons
+  // Let the bot handle the user response
+  await notifyWithButtons(userId, infirmaryTitle, results, watch.watchId)
+  
+  // Track for analytics
+  incrementNotificationCount(watch.watchId)
+  setLastNotified(watch.watchId, Date.now())
+  recordNotificationEvent(watch.watchId, userId, infirmaryId, watch.notificationCount + 1)
 }

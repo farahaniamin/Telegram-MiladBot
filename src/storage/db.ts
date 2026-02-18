@@ -23,7 +23,22 @@ CREATE TABLE IF NOT EXISTS watches (
   telegram_id INTEGER NOT NULL,
   infirmary_id INTEGER NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
-  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  notification_count INTEGER DEFAULT 0,
+  last_notified_at INTEGER,
+  grace_period_end INTEGER,
+  status TEXT DEFAULT 'active'
+);
+
+CREATE TABLE IF NOT EXISTS watch_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  watch_id INTEGER NOT NULL,
+  telegram_id INTEGER NOT NULL,
+  infirmary_id INTEGER NOT NULL,
+  notified_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  attempt_number INTEGER DEFAULT 1,
+  user_response TEXT,
+  FOREIGN KEY (watch_id) REFERENCES watches(id)
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -32,4 +47,6 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_watches_active_infirmary ON watches(active, infirmary_id);
+CREATE INDEX IF NOT EXISTS idx_watch_history_watch ON watch_history(watch_id);
+CREATE INDEX IF NOT EXISTS idx_watch_history_time ON watch_history(notified_at);
 `)

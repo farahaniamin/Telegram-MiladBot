@@ -31,5 +31,11 @@ export const CONFIG = {
   API_URL: process.env.API_URL ?? 'https://telegram.farahaniamin6.workers.dev',
   PROXY_URL: process.env.PROXY_URL ?? 'http://127.0.0.1:3067',
   DEFAULT_USE_LOCAL_PROXY: parseBoolEnv('USE_LOCAL_PROXY', true),
-  DEFAULT_USE_API_WORKER: parseBoolEnv('USE_API_WORKER', true)
+  DEFAULT_USE_API_WORKER: parseBoolEnv('USE_API_WORKER', true),
+  
+  // Smart Re-watch Settings
+  GRACE_PERIOD_MINUTES: 15,
+  MAX_NOTIFICATIONS_PER_WATCH: 5,
+  COOLDOWN_BETWEEN_NOTIFICATIONS_MIN: 2,
+  ASK_USER_AFTER_GRACE_PERIOD: true
 } as const

@@ -6,6 +6,7 @@ import { seedInfirmaries } from './storage/infirmary.repo.js'
 import { INFIRMARY_SEED } from './data/infirmaries.seed.js'
 import { formatTimingMessage } from './core/format.js'
 import { isLocalProxyEnabled, isApiWorkerEnabled } from './storage/settings.repo.js'
+import { InlineKeyboard } from 'grammy'
 
 async function bootstrap() {
   if (!CONFIG.BOT_TOKEN) {
@@ -39,15 +40,25 @@ async function bootstrap() {
   // Create bot instance with configuration
   const bot = createBot()
 
-  // Scheduler notifies via telegram
-  startScheduler(async (userIds, infirmaryTitle, results) => {
+  // Simplified Smart Re-watch: Send notification with buttons immediately
+  startScheduler(async (userId: number, infirmaryTitle: string, results: any[], watchId: number) => {
     const msg = formatTimingMessage(infirmaryTitle, results)
-    for (const uid of userIds) {
-      try {
-        await bot.api.sendMessage(uid, msg)
-      } catch {
-        // ignore per-user errors to avoid blocking
-      }
+    
+    try {
+      // Send notification with inline buttons for immediate user choice
+      await bot.api.sendMessage(
+        userId,
+        msg + '\n\n' +
+        '⬇️ *ادامه اعلان‌دهی؟*',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard()
+            .text('✅ ادامه اعلان‌دهی', `smart_watch:keep:${infirmaryTitle}`).row()
+            .text('❌ غیرفعال کردن', `smart_watch:deactivate:${infirmaryTitle}`)
+        }
+      )
+    } catch (err) {
+      console.error(`Failed to notify user ${userId}:`, err)
     }
   })
 
