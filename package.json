@@ -1,27 +1,21 @@
 {
   "name": "milad-appointment-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply milad-bot-db"
   },
   "dependencies": {
-    "better-sqlite3": "^9.4.0",
-    "dotenv": "^16.4.5",
     "grammy": "^1.24.0",
-    "https-proxy-agent": "^7.0.6",
     "lru-cache": "^10.2.2",
-    "p-queue": "^8.0.1",
-    "socks-proxy-agent": "^8.0.5",
-    "undici": "^6.18.1"
+    "p-queue": "^8.0.1"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^22.10.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "@cloudflare/workers-types": "^4.20241230.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.99.0"
   }
 }

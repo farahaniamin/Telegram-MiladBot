@@ -1,0 +1,33 @@
+name = "milad-appointment-bot"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron Triggers - runs every 2 minutes
+triggers = { crons = ["*/2 * * * *"] }
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "milad-bot-db"
+database_id = "your-database-id-here"
+
+# Secrets (set these with 'wrangler secret put')
+# BOT_TOKEN
+# ADMIN_IDS  
+# SYSTEM_NATIONAL_CODE
+
+# Environment variables
+[vars]
+DEFAULT_INTERVAL_MIN = "2"
+JITTER_SEC = "20"
+
+# Development environment
+[env.dev.vars]
+DEFAULT_INTERVAL_MIN = "2"
+JITTER_SEC = "20"
+
+# Production environment
+[env.production.vars]
+DEFAULT_INTERVAL_MIN = "2"
+JITTER_SEC = "20"

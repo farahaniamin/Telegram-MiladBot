@@ -1,5 +1,3 @@
-import 'dotenv/config'
-
 function parseIntEnv(key: string, fallback: number) {
   const v = process.env[key]
   const n = v ? Number(v) : NaN
@@ -28,10 +26,6 @@ export const CONFIG = {
   DEFAULT_INTERVAL_MIN: parseIntEnv('DEFAULT_INTERVAL_MIN', 5),
   JITTER_SEC: parseIntEnv('JITTER_SEC', 20),
   CACHE_TTL_MS: 90_000,
-  API_URL: process.env.API_URL ?? 'https://telegram.farahaniamin6.workers.dev',
-  PROXY_URL: process.env.PROXY_URL ?? 'http://127.0.0.1:3067',
-  DEFAULT_USE_LOCAL_PROXY: parseBoolEnv('USE_LOCAL_PROXY', true),
-  DEFAULT_USE_API_WORKER: parseBoolEnv('USE_API_WORKER', true),
   
   // Smart Re-watch Settings
   GRACE_PERIOD_MINUTES: 15,

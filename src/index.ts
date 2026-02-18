@@ -1,99 +1,123 @@
 import { CONFIG } from './config.js'
 import { createBot } from './bot/bot.js'
 import { validatePatient } from './services/hospital.client.js'
-import { startScheduler } from './core/scheduler.js'
+import { runSchedulerTick } from './core/scheduler.js'
 import { seedInfirmaries } from './storage/infirmary.repo.js'
 import { INFIRMARY_SEED } from './data/infirmaries.seed.js'
 import { formatTimingMessage } from './core/format.js'
-import { isLocalProxyEnabled, isApiWorkerEnabled } from './storage/settings.repo.js'
+import { setDatabase, initializeDatabase } from './storage/db.js'
 import { InlineKeyboard } from 'grammy'
+import type { D1Database } from '@cloudflare/workers-types'
 
-async function bootstrap() {
-  if (!CONFIG.BOT_TOKEN) {
-    throw new Error('BOT_TOKEN is missing. Set it in .env')
-  }
+// Environment type definition
+export interface Env {
+  DB: D1Database
+  BOT_TOKEN: string
+  ADMIN_IDS: string
+  SYSTEM_NATIONAL_CODE: string
+}
 
-  // Seed infirmaries (static list extracted from your HTML)
-  seedInfirmaries(INFIRMARY_SEED)
+let bot: ReturnType<typeof createBot> | null = null
+let isInitialized = false
 
-  // Log proxy configuration
-  const useProxy = isLocalProxyEnabled()
-  const useWorker = isApiWorkerEnabled()
-  console.log('📡 Connection settings:')
-  console.log(`  - Local Proxy: ${useProxy ? 'ON' : 'OFF'} (${CONFIG.PROXY_URL})`)
-  console.log(`  - API Worker: ${useWorker ? 'ON' : 'OFF'} (${CONFIG.API_URL})`)
-  console.log(`  - API Root: ${useWorker ? CONFIG.API_URL : 'https://api.telegram.org'}`)
-
+async function initialize(env: Env) {
+  if (isInitialized) return
+  
+  // Set up database
+  setDatabase(env.DB)
+  await initializeDatabase(env.DB)
+  
+  // Seed infirmaries
+  await seedInfirmaries(INFIRMARY_SEED)
+  
+  // Validate system national code
+  console.log('🔍 Validating system national code...')
   try {
-    // Validate system national code once at startup (so watcher is reliable)
-    console.log('🔍 Validating system national code...')
     const p = await validatePatient(CONFIG.SYSTEM_NATIONAL_CODE)
     console.log(`  - Patient: ${p.fullName}, allowToSetTimming: ${p.allowToSetTimming}`)
     if (!p.allowToSetTimming) {
-      throw new Error('SYSTEM_NATIONAL_CODE is not allowed (allowToSetTimming=false). Change SYSTEM_NATIONAL_CODE.')
+      throw new Error('SYSTEM_NATIONAL_CODE is not allowed')
     }
   } catch (e) {
     console.error('❌ Failed to validate system national code:', e)
     throw e
   }
-
-  // Create bot instance with configuration
-  const bot = createBot()
-
-  // Simplified Smart Re-watch: Send notification with buttons immediately
-  startScheduler(async (userId: number, infirmaryTitle: string, results: any[], watchId: number) => {
-    const msg = formatTimingMessage(infirmaryTitle, results)
-    
-    try {
-      // Send notification with inline buttons for immediate user choice
-      await bot.api.sendMessage(
-        userId,
-        msg + '\n\n' +
-        '⬇️ *ادامه اعلان‌دهی؟*',
-        {
-          parse_mode: 'Markdown',
-          reply_markup: new InlineKeyboard()
-            .text('✅ ادامه اعلان‌دهی', `smart_watch:keep:${infirmaryTitle}`).row()
-            .text('❌ غیرفعال کردن', `smart_watch:deactivate:${infirmaryTitle}`)
-        }
-      )
-    } catch (err) {
-      console.error(`Failed to notify user ${userId}:`, err)
-    }
-  })
-
-  // Add error handler for bot
-  bot.catch((err) => {
-    console.error('❌ Bot error:', err)
-  })
-
-  // Test bot connection before starting
-  console.log('🧪 Testing bot connection...')
-  try {
-    const botInfo = await bot.api.getMe()
-    console.log(`✅ Bot connected: @${botInfo.username}`)
-  } catch (testError) {
-    console.error('❌ Failed to connect to Telegram:', testError)
-    throw testError
-  }
-
-  // Start bot (long polling; simplest, reliable). Can be switched to webhook later.
-  console.log('🚀 Starting bot polling...')
-  try {
-    await bot.start({
-      allowed_updates: ['message', 'callback_query'],
-      onStart: (botInfo) => {
-        console.log(`✅ Bot @${botInfo.username} started successfully`)
-        console.log(`🤖 Bot ID: ${botInfo.id}`)
-      }
-    })
-  } catch (startError) {
-    console.error('❌ Failed to start bot:', startError)
-    throw startError
-  }
+  
+  // Create bot instance
+  bot = createBot()
+  
+  isInitialized = true
+  console.log('✅ Initialization complete')
 }
 
-bootstrap().catch((e) => {
-  console.error('❌ Fatal error:', e)
-  process.exit(1)
-})
+// Main fetch handler for HTTP requests (webhook)
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    try {
+      await initialize(env)
+      
+      if (!bot) {
+        return new Response('Bot not initialized', { status: 500 })
+      }
+      
+      const url = new URL(request.url)
+      
+      // Handle webhook from Telegram
+      if (url.pathname === '/webhook' && request.method === 'POST') {
+        const update = await request.json()
+        await bot.handleUpdate(update)
+        return new Response('OK', { status: 200 })
+      }
+      
+      // Health check endpoint
+      if (url.pathname === '/health') {
+        return new Response('OK', { status: 200 })
+      }
+      
+      // Default response
+      return new Response('Milad Appointment Bot - Cloudflare Workers', { status: 200 })
+    } catch (error) {
+      console.error('Error in fetch handler:', error)
+      return new Response('Internal Server Error', { status: 500 })
+    }
+  },
+  
+  // Cron trigger handler - runs every 2 minutes
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      await initialize(env)
+      
+      if (!bot) {
+        console.error('Bot not initialized')
+        return
+      }
+      
+      console.log('⏰ Running scheduled task...')
+      
+      // Run the scheduler tick
+      await runSchedulerTick(async (userId: number, infirmaryTitle: string, results: any[], watchId: number) => {
+        const msg = formatTimingMessage(infirmaryTitle, results)
+        
+        try {
+          await bot!.api.sendMessage(
+            userId,
+            msg + '\n\n' +
+            '⬇️ *ادامه اعلان‌دهی؟*',
+            {
+              parse_mode: 'Markdown',
+              reply_markup: new InlineKeyboard()
+                .text('✅ ادامه اعلان‌دهی', `smart_watch:keep:${infirmaryTitle}`).row()
+                .text('❌ غیرفعال کردن', `smart_watch:deactivate:${infirmaryTitle}`)
+            }
+          )
+        } catch (err) {
+          console.error(`Failed to notify user ${userId}:`, err)
+        }
+      })
+      
+      console.log('✅ Scheduled task completed')
+    } catch (error) {
+      console.error('Error in scheduled handler:', error)
+    }
+  }
+}

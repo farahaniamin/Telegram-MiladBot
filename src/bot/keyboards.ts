@@ -37,12 +37,13 @@ function labelFor(id: number, title: string, isWatched: boolean = false) {
   return `${watchIcon}${e} ${shortTitle}`
 }
 
-export function infirmaryKeyboard(userId?: number) {
+export async function infirmaryKeyboard(userId?: number) {
   const kb = new InlineKeyboard()
-  const items = listInfirmaries().filter(it => it.code) // Only show configured infirmaries
+  const allItems = await listInfirmaries()
+  const items = allItems.filter(it => it.code) // Only show configured infirmaries
   
   // Get user's watches to show bell icon on watched clinics
-  const userWatches = userId ? listActiveWatchesByUser(userId) : []
+  const userWatches = userId ? await listActiveWatchesByUser(userId) : []
   const watchedIds = new Set(userWatches.map(w => w.infirmaryId))
 
   // Show in 2 columns with bell icon for watched clinics

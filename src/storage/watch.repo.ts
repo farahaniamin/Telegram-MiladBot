@@ -1,33 +1,39 @@
-import { db } from './db.js'
+import { getDatabase } from './db.js'
 
-export function addWatch(telegramId: number, infirmaryId: number) {
-  db.prepare(
+export async function addWatch(telegramId: number, infirmaryId: number) {
+  const db = getDatabase()
+  await db.prepare(
     'INSERT INTO watches (telegram_id, infirmary_id, active) VALUES (?, ?, 1)'
-  ).run(telegramId, infirmaryId)
+  ).bind(telegramId, infirmaryId).run()
 }
 
-export function deactivateWatch(telegramId: number, infirmaryId: number) {
-  db.prepare('UPDATE watches SET active = 0 WHERE telegram_id = ? AND infirmary_id = ? AND active = 1')
-    .run(telegramId, infirmaryId)
+export async function deactivateWatch(telegramId: number, infirmaryId: number) {
+  const db = getDatabase()
+  await db.prepare('UPDATE watches SET active = 0 WHERE telegram_id = ? AND infirmary_id = ? AND active = 1')
+    .bind(telegramId, infirmaryId).run()
 }
 
-export function deactivateAllByInfirmary(infirmaryId: number) {
-  db.prepare('UPDATE watches SET active = 0 WHERE infirmary_id = ? AND active = 1')
-    .run(infirmaryId)
+export async function deactivateAllByInfirmary(infirmaryId: number) {
+  const db = getDatabase()
+  await db.prepare('UPDATE watches SET active = 0 WHERE infirmary_id = ? AND active = 1')
+    .bind(infirmaryId).run()
 }
 
-export function listActiveWatchesByUser(telegramId: number): Array<{ infirmaryId: number }> {
-  return db.prepare('SELECT infirmary_id as infirmaryId FROM watches WHERE telegram_id = ? AND active = 1')
-    .all(telegramId) as any
+export async function listActiveWatchesByUser(telegramId: number): Promise<Array<{ infirmaryId: number }>> {
+  const db = getDatabase()
+  const result = await db.prepare('SELECT infirmary_id as infirmaryId FROM watches WHERE telegram_id = ? AND active = 1')
+    .bind(telegramId).all()
+  return (result.results || []) as any
 }
 
-export function listActiveWatchesWithDetails(telegramId: number): Array<{
+export async function listActiveWatchesWithDetails(telegramId: number): Promise<Array<{
   watchId: number
   infirmaryId: number
   infirmaryTitle: string
   createdAt: number
-}> {
-  return db.prepare(`
+}>> {
+  const db = getDatabase()
+  const result = await db.prepare(`
     SELECT 
       w.id as watchId,
       w.infirmary_id as infirmaryId,
@@ -37,21 +43,24 @@ export function listActiveWatchesWithDetails(telegramId: number): Array<{
     JOIN infirmaries i ON w.infirmary_id = i.id
     WHERE w.telegram_id = ? AND w.active = 1
     ORDER BY w.created_at DESC
-  `).all(telegramId) as any
+  `).bind(telegramId).all()
+  return (result.results || []) as any
 }
 
 /**
  * Group watches by infirmary to minimize requests.
  * Returns: [{ infirmaryId, userIds: number[] }]
  */
-export function getActiveWatchesGrouped(): Array<{ infirmaryId: number; userIds: number[] }> {
-  const rows = db.prepare(`
+export async function getActiveWatchesGrouped(): Promise<Array<{ infirmaryId: number; userIds: number[] }>> {
+  const db = getDatabase()
+  const result = await db.prepare(`
     SELECT infirmary_id as infirmaryId, GROUP_CONCAT(telegram_id) as users
     FROM watches
     WHERE active = 1
     GROUP BY infirmary_id
-  `).all() as any[]
-
+  `).all()
+  
+  const rows = (result.results || []) as any[]
   return rows.map(r => ({
     infirmaryId: r.infirmaryId as number,
     userIds: String(r.users).split(',').map((x: string) => Number(x)).filter((n: number) => Number.isFinite(n))
@@ -70,8 +79,9 @@ export type WatchWithSmartData = {
   status: string
 }
 
-export function getActiveWatchesWithSmartData(): WatchWithSmartData[] {
-  return db.prepare(`
+export async function getActiveWatchesWithSmartData(): Promise<WatchWithSmartData[]> {
+  const db = getDatabase()
+  const result = await db.prepare(`
     SELECT 
       id as watchId,
       telegram_id as telegramId,
@@ -82,53 +92,63 @@ export function getActiveWatchesWithSmartData(): WatchWithSmartData[] {
       status
     FROM watches
     WHERE active = 1
-  `).all() as WatchWithSmartData[]
+  `).all()
+  return (result.results || []) as WatchWithSmartData[]
 }
 
-export function incrementNotificationCount(watchId: number): void {
-  db.prepare('UPDATE watches SET notification_count = notification_count + 1 WHERE id = ?').run(watchId)
+export async function incrementNotificationCount(watchId: number): Promise<void> {
+  const db = getDatabase()
+  await db.prepare('UPDATE watches SET notification_count = notification_count + 1 WHERE id = ?').bind(watchId).run()
 }
 
-export function getNotificationCount(watchId: number): number {
-  const row = db.prepare('SELECT notification_count FROM watches WHERE id = ?').get(watchId) as any
-  return row?.notification_count ?? 0
+export async function getNotificationCount(watchId: number): Promise<number> {
+  const db = getDatabase()
+  const result = await db.prepare('SELECT notification_count FROM watches WHERE id = ?').bind(watchId).first()
+  return (result as any)?.notification_count ?? 0
 }
 
-export function setLastNotified(watchId: number, timestamp: number): void {
-  db.prepare('UPDATE watches SET last_notified_at = ? WHERE id = ?').run(timestamp, watchId)
+export async function setLastNotified(watchId: number, timestamp: number): Promise<void> {
+  const db = getDatabase()
+  await db.prepare('UPDATE watches SET last_notified_at = ? WHERE id = ?').bind(timestamp, watchId).run()
 }
 
-export function getLastNotified(watchId: number): number | null {
-  const row = db.prepare('SELECT last_notified_at FROM watches WHERE id = ?').get(watchId) as any
-  return row?.last_notified_at ?? null
+export async function getLastNotified(watchId: number): Promise<number | null> {
+  const db = getDatabase()
+  const result = await db.prepare('SELECT last_notified_at FROM watches WHERE id = ?').bind(watchId).first()
+  return (result as any)?.last_notified_at ?? null
 }
 
-export function setGracePeriod(watchId: number, endTimestamp: number): void {
-  db.prepare('UPDATE watches SET grace_period_end = ? WHERE id = ?').run(endTimestamp, watchId)
+export async function setGracePeriod(watchId: number, endTimestamp: number): Promise<void> {
+  const db = getDatabase()
+  await db.prepare('UPDATE watches SET grace_period_end = ? WHERE id = ?').bind(endTimestamp, watchId).run()
 }
 
-export function getGracePeriodEnd(watchId: number): number | null {
-  const row = db.prepare('SELECT grace_period_end FROM watches WHERE id = ?').get(watchId) as any
-  return row?.grace_period_end ?? null
+export async function getGracePeriodEnd(watchId: number): Promise<number | null> {
+  const db = getDatabase()
+  const result = await db.prepare('SELECT grace_period_end FROM watches WHERE id = ?').bind(watchId).first()
+  return (result as any)?.grace_period_end ?? null
 }
 
-export function isInGracePeriod(watchId: number): boolean {
-  const end = getGracePeriodEnd(watchId)
+export async function isInGracePeriod(watchId: number): Promise<boolean> {
+  const end = await getGracePeriodEnd(watchId)
   if (!end) return false
   return Date.now() < end
 }
 
-export function setWatchStatus(watchId: number, status: string): void {
-  db.prepare('UPDATE watches SET status = ? WHERE id = ?').run(status, watchId)
+export async function setWatchStatus(watchId: number, status: string): Promise<void> {
+  const db = getDatabase()
+  await db.prepare('UPDATE watches SET status = ? WHERE id = ?').bind(status, watchId).run()
 }
 
-export function getWatchStatus(watchId: number): string {
-  const row = db.prepare('SELECT status FROM watches WHERE id = ?').get(watchId) as any
-  return row?.status ?? 'active'
+export async function getWatchStatus(watchId: number): Promise<string> {
+  const db = getDatabase()
+  const result = await db.prepare('SELECT status FROM watches WHERE id = ?').bind(watchId).first()
+  return (result as any)?.status ?? 'active'
 }
 
-export function getWatchByUserAndInfirmary(telegramId: number, infirmaryId: number): WatchWithSmartData | null {
-  const row = db.prepare(`
+export async function getWatchByUserAndInfirmary(telegramId: number, infirmaryId: number): Promise<WatchWithSmartData | null> {
+  const db = getDatabase()
+  const result = await db.prepare(`
     SELECT 
       id as watchId,
       telegram_id as telegramId,
@@ -139,42 +159,45 @@ export function getWatchByUserAndInfirmary(telegramId: number, infirmaryId: numb
       status
     FROM watches
     WHERE telegram_id = ? AND infirmary_id = ? AND active = 1
-  `).get(telegramId, infirmaryId) as WatchWithSmartData | undefined
+  `).bind(telegramId, infirmaryId).first()
   
-  return row ?? null
+  return (result as WatchWithSmartData) ?? null
 }
 
 // ================= WATCH HISTORY FUNCTIONS =================
 
-export function recordNotificationEvent(
+export async function recordNotificationEvent(
   watchId: number, 
   telegramId: number, 
   infirmaryId: number, 
   attemptNumber: number
-): void {
-  db.prepare(`
+): Promise<void> {
+  const db = getDatabase()
+  await db.prepare(`
     INSERT INTO watch_history (watch_id, telegram_id, infirmary_id, attempt_number)
     VALUES (?, ?, ?, ?)
-  `).run(watchId, telegramId, infirmaryId, attemptNumber)
+  `).bind(watchId, telegramId, infirmaryId, attemptNumber).run()
 }
 
-export function recordUserResponse(watchId: number, response: 'booked' | 'continue' | 'stop'): void {
-  db.prepare(`
+export async function recordUserResponse(watchId: number, response: 'booked' | 'continue' | 'stop'): Promise<void> {
+  const db = getDatabase()
+  await db.prepare(`
     UPDATE watch_history 
     SET user_response = ? 
     WHERE watch_id = ? 
     ORDER BY id DESC 
     LIMIT 1
-  `).run(response, watchId)
+  `).bind(response, watchId).run()
 }
 
-export function getNotificationHistory(watchId: number): Array<{
+export async function getNotificationHistory(watchId: number): Promise<Array<{
   id: number
   notifiedAt: number
   attemptNumber: number
   userResponse: string | null
-}> {
-  return db.prepare(`
+}>> {
+  const db = getDatabase()
+  const result = await db.prepare(`
     SELECT 
       id,
       notified_at as notifiedAt,
@@ -183,5 +206,6 @@ export function getNotificationHistory(watchId: number): Array<{
     FROM watch_history
     WHERE watch_id = ?
     ORDER BY notified_at DESC
-  `).all(watchId) as any
+  `).bind(watchId).all()
+  return (result.results || []) as any
 }

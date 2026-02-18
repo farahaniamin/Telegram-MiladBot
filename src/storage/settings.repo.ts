@@ -1,54 +1,40 @@
-import { db } from './db.js'
+import { getDatabase } from './db.js'
 import { CONFIG } from '../config.js'
 
-export function getSetting(key: string): string | null {
-  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any
-  return row?.value ?? null
+export async function getSetting(key: string): Promise<string | null> {
+  const db = getDatabase()
+  const result = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first()
+  return (result as any)?.value ?? null
 }
 
-export function setSetting(key: string, value: string) {
-  db.prepare(`
+export async function setSetting(key: string, value: string): Promise<void> {
+  const db = getDatabase()
+  await db.prepare(`
     INSERT INTO settings (key, value) VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET value=excluded.value
-  `).run(key, value)
+  `).bind(key, value).run()
 }
 
-export function getIntervalMinutes(): number {
-  const v = getSetting('interval_minutes')
+export async function getIntervalMinutes(): Promise<number> {
+  const v = await getSetting('interval_minutes')
   const n = v ? Number(v) : NaN
   return Number.isFinite(n) ? n : CONFIG.DEFAULT_INTERVAL_MIN
 }
 
-export function setIntervalMinutes(minutes: number) {
-  setSetting('interval_minutes', String(minutes))
+export async function setIntervalMinutes(minutes: number): Promise<void> {
+  await setSetting('interval_minutes', String(minutes))
 }
 
-export function isPaused(): boolean {
-  return getSetting('paused') === '1'
+export async function isPaused(): Promise<boolean> {
+  return (await getSetting('paused')) === '1'
 }
 
-export function setPaused(paused: boolean) {
-  setSetting('paused', paused ? '1' : '0')
+export async function setPaused(paused: boolean): Promise<void> {
+  await setSetting('paused', paused ? '1' : '0')
 }
 
-export function isLocalProxyEnabled(): boolean {
-  const v = getSetting('use_local_proxy')
-  if (v === '1') return true
-  if (v === '0') return false
-  return CONFIG.DEFAULT_USE_LOCAL_PROXY
-}
-
-export function setLocalProxyEnabled(enabled: boolean) {
-  setSetting('use_local_proxy', enabled ? '1' : '0')
-}
-
-export function isApiWorkerEnabled(): boolean {
-  const v = getSetting('use_api_worker')
-  if (v === '1') return true
-  if (v === '0') return false
-  return CONFIG.DEFAULT_USE_API_WORKER
-}
-
-export function setApiWorkerEnabled(enabled: boolean) {
-  setSetting('use_api_worker', enabled ? '1' : '0')
-}
+// Proxy-related settings removed - not supported in Cloudflare Workers
+// export function isLocalProxyEnabled(): boolean { ... }
+// export function setLocalProxyEnabled(enabled: boolean) { ... }
+// export function isApiWorkerEnabled(): boolean { ... }
+// export function setApiWorkerEnabled(enabled: boolean) { ... }

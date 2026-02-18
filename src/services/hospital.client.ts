@@ -1,14 +1,6 @@
-import { request, Agent } from 'undici'
 import { CONFIG } from '../config.js'
 
-const agent = new Agent({
-  keepAliveTimeout: 60_000,
-  keepAliveMaxTimeout: 60_000,
-  connections: 1
-})
-
 function ua() {
-  // Minimal, stable UA. Avoids looking like a bot library.
   return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 }
 
@@ -20,10 +12,9 @@ export type PatientResponse = {
 }
 
 export async function validatePatient(nationalCode: string): Promise<PatientResponse> {
-  const { statusCode, body } = await request(
+  const response = await fetch(
     `${CONFIG.BASE_URL}/api/patient/patient/GetOnlineReceptionPatientByNationalCode?nationalCode=${encodeURIComponent(nationalCode)}`,
     {
-      dispatcher: agent,
       headers: {
         accept: 'application/json, text/plain, */*',
         'user-agent': ua(),
@@ -33,11 +24,11 @@ export async function validatePatient(nationalCode: string): Promise<PatientResp
     }
   )
 
-  if (statusCode !== 200) {
-    throw new Error(`validatePatient_failed_status_${statusCode}`)
+  if (!response.ok) {
+    throw new Error(`validatePatient_failed_status_${response.status}`)
   }
 
-  return body.json() as any
+  return response.json() as Promise<PatientResponse>
 }
 
 export type TimingResult = {
@@ -55,18 +46,16 @@ export async function searchInfirmaryTiming(
   infirmary: { id: number; code: string; title: string },
   nationalCode: string
 ): Promise<TimingResult[]> {
-  const { statusCode, body } = await request(
+  const response = await fetch(
     `${CONFIG.BASE_URL}/api/Timing/InfirmaryTiming/PostSearchInfirmaryTimingResult`,
     {
       method: 'POST',
-      dispatcher: agent,
       headers: {
         'content-type': 'application/json; charset=utf-8',
         accept: 'application/json, text/plain, */*',
         'user-agent': ua(),
         pragma: 'no-cache',
         'cache-control': 'no-cache',
-        // Referer helps look like normal SPA usage
         referer: `${CONFIG.BASE_URL}/onlineReception`
       },
       body: JSON.stringify({
@@ -77,10 +66,10 @@ export async function searchInfirmaryTiming(
     }
   )
 
-  if (statusCode !== 200) {
-    throw new Error(`searchInfirmaryTiming_failed_status_${statusCode}`)
+  if (!response.ok) {
+    throw new Error(`searchInfirmaryTiming_failed_status_${response.status}`)
   }
 
-  const json = (await body.json()) as any
+  const json = await response.json()
   return Array.isArray(json) ? (json as TimingResult[]) : []
 }

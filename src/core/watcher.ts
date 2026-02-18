@@ -26,7 +26,7 @@ export type NotifyWithButtonsFn = (
 ) => Promise<void>
 
 export async function processWatchGroup(group: WatchGroup, notifyWithButtons: NotifyWithButtonsFn) {
-  const infirmaryRow = getInfirmaryById(group.infirmaryId)
+  const infirmaryRow = await getInfirmaryById(group.infirmaryId)
   if (!infirmaryRow) return
 
   // If code unknown, skip to avoid useless/invalid calls.
@@ -66,7 +66,7 @@ async function processUserWatch(
   results: any[],
   notifyWithButtons: NotifyWithButtonsFn
 ) {
-  const watch = getWatchByUserAndInfirmary(userId, infirmaryId)
+  const watch = await getWatchByUserAndInfirmary(userId, infirmaryId)
   if (!watch) return
 
   // Simplified: Always send notification with buttons
@@ -74,7 +74,7 @@ async function processUserWatch(
   await notifyWithButtons(userId, infirmaryTitle, results, watch.watchId)
   
   // Track for analytics
-  incrementNotificationCount(watch.watchId)
-  setLastNotified(watch.watchId, Date.now())
-  recordNotificationEvent(watch.watchId, userId, infirmaryId, watch.notificationCount + 1)
+  await incrementNotificationCount(watch.watchId)
+  await setLastNotified(watch.watchId, Date.now())
+  await recordNotificationEvent(watch.watchId, userId, infirmaryId, watch.notificationCount + 1)
 }

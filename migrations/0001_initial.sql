@@ -1,21 +1,6 @@
-import type { D1Database } from '@cloudflare/workers-types'
+-- Migration: Initial schema
+-- Created at: 2024-12-30
 
-// D1 database instance - will be set by the entry point
-let dbInstance: D1Database | null = null
-
-export function setDatabase(database: D1Database) {
-  dbInstance = database
-}
-
-export function getDatabase(): D1Database {
-  if (!dbInstance) {
-    throw new Error('Database not initialized')
-  }
-  return dbInstance
-}
-
-// Schema for D1 initialization
-export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   telegram_id INTEGER PRIMARY KEY,
   national_code TEXT NOT NULL
@@ -58,9 +43,3 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE INDEX IF NOT EXISTS idx_watches_active_infirmary ON watches(active, infirmary_id);
 CREATE INDEX IF NOT EXISTS idx_watch_history_watch ON watch_history(watch_id);
 CREATE INDEX IF NOT EXISTS idx_watch_history_time ON watch_history(notified_at);
-`
-
-// Initialize database with schema
-export async function initializeDatabase(db: D1Database) {
-  await db.exec(SCHEMA)
-}
