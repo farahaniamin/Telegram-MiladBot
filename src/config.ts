@@ -15,7 +15,7 @@ function parseBoolEnv(key: string, fallback: boolean): boolean {
 
 export const CONFIG = {
   BASE_URL: 'https://miladhospital.com',
-  BOT_TOKEN: process.env.BOT_TOKEN ?? '',
+  BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN ?? '',
   ADMIN_IDS: new Set(
     (process.env.ADMIN_IDS ?? '')
       .split(',')

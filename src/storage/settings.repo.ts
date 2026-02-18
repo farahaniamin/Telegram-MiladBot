@@ -2,15 +2,15 @@ import { db } from './db.js'
 import { CONFIG } from '../config.js'
 
 export function getSetting(key: string): string | null {
-  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any
+  const row = db.get('SELECT value FROM settings WHERE key = $1', [key]) as any
   return row?.value ?? null
 }
 
 export function setSetting(key: string, value: string) {
-  db.prepare(`
-    INSERT INTO settings (key, value) VALUES (?, ?)
+  db.run(`
+    INSERT INTO settings (key, value) VALUES ($1, $2)
     ON CONFLICT(key) DO UPDATE SET value=excluded.value
-  `).run(key, value)
+  `, [key, value])
 }
 
 export function getIntervalMinutes(): number {

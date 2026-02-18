@@ -1,24 +1,25 @@
 import { db } from './db.js'
 
 export function addWatch(telegramId: number, infirmaryId: number) {
-  db.prepare(
-    'INSERT INTO watches (telegram_id, infirmary_id, active) VALUES (?, ?, 1)'
-  ).run(telegramId, infirmaryId)
+  db.run(
+    'INSERT INTO watches (telegram_id, infirmary_id, active) VALUES ($1, $2, 1)',
+    [telegramId, infirmaryId]
+  )
 }
 
 export function deactivateWatch(telegramId: number, infirmaryId: number) {
-  db.prepare('UPDATE watches SET active = 0 WHERE telegram_id = ? AND infirmary_id = ? AND active = 1')
-    .run(telegramId, infirmaryId)
+  db.run('UPDATE watches SET active = 0 WHERE telegram_id = $1 AND infirmary_id = $2 AND active = 1',
+    [telegramId, infirmaryId])
 }
 
 export function deactivateAllByInfirmary(infirmaryId: number) {
-  db.prepare('UPDATE watches SET active = 0 WHERE infirmary_id = ? AND active = 1')
-    .run(infirmaryId)
+  db.run('UPDATE watches SET active = 0 WHERE infirmary_id = $1 AND active = 1',
+    [infirmaryId])
 }
 
 export function listActiveWatchesByUser(telegramId: number): Array<{ infirmaryId: number }> {
-  return db.prepare('SELECT infirmary_id as infirmaryId FROM watches WHERE telegram_id = ? AND active = 1')
-    .all(telegramId) as any
+  return db.all('SELECT infirmary_id as infirmaryId FROM watches WHERE telegram_id = $1 AND active = 1',
+    [telegramId]) as any
 }
 
 export function listActiveWatchesWithDetails(telegramId: number): Array<{
@@ -27,7 +28,7 @@ export function listActiveWatchesWithDetails(telegramId: number): Array<{
   infirmaryTitle: string
   createdAt: number
 }> {
-  return db.prepare(`
+  return db.all(`
     SELECT 
       w.id as watchId,
       w.infirmary_id as infirmaryId,
@@ -35,30 +36,24 @@ export function listActiveWatchesWithDetails(telegramId: number): Array<{
       w.created_at as createdAt
     FROM watches w
     JOIN infirmaries i ON w.infirmary_id = i.id
-    WHERE w.telegram_id = ? AND w.active = 1
+    WHERE w.telegram_id = $1 AND w.active = 1
     ORDER BY w.created_at DESC
-  `).all(telegramId) as any
+  `, [telegramId]) as any
 }
 
-/**
- * Group watches by infirmary to minimize requests.
- * Returns: [{ infirmaryId, userIds: number[] }]
- */
 export function getActiveWatchesGrouped(): Array<{ infirmaryId: number; userIds: number[] }> {
-  const rows = db.prepare(`
-    SELECT infirmary_id as infirmaryId, GROUP_CONCAT(telegram_id) as users
+  const rows = db.all(`
+    SELECT infirmary_id as infirmaryId, ARRAY_AGG(telegram_id) as users
     FROM watches
     WHERE active = 1
     GROUP BY infirmary_id
-  `).all() as any[]
+  `) as any[]
 
   return rows.map(r => ({
     infirmaryId: r.infirmaryId as number,
-    userIds: String(r.users).split(',').map((x: string) => Number(x)).filter((n: number) => Number.isFinite(n))
+    userIds: (r.users || []).map((x: number) => Number(x)).filter((n: number) => Number.isFinite(n))
   }))
 }
-
-// ================= SMART RE-WATCH FUNCTIONS =================
 
 export type WatchWithSmartData = {
   watchId: number
@@ -71,7 +66,7 @@ export type WatchWithSmartData = {
 }
 
 export function getActiveWatchesWithSmartData(): WatchWithSmartData[] {
-  return db.prepare(`
+  return db.all(`
     SELECT 
       id as watchId,
       telegram_id as telegramId,
@@ -82,33 +77,33 @@ export function getActiveWatchesWithSmartData(): WatchWithSmartData[] {
       status
     FROM watches
     WHERE active = 1
-  `).all() as WatchWithSmartData[]
+  `) as WatchWithSmartData[]
 }
 
 export function incrementNotificationCount(watchId: number): void {
-  db.prepare('UPDATE watches SET notification_count = notification_count + 1 WHERE id = ?').run(watchId)
+  db.run('UPDATE watches SET notification_count = notification_count + 1 WHERE id = $1', [watchId])
 }
 
 export function getNotificationCount(watchId: number): number {
-  const row = db.prepare('SELECT notification_count FROM watches WHERE id = ?').get(watchId) as any
+  const row = db.get('SELECT notification_count FROM watches WHERE id = $1', [watchId]) as any
   return row?.notification_count ?? 0
 }
 
 export function setLastNotified(watchId: number, timestamp: number): void {
-  db.prepare('UPDATE watches SET last_notified_at = ? WHERE id = ?').run(timestamp, watchId)
+  db.run('UPDATE watches SET last_notified_at = $1 WHERE id = $2', [timestamp, watchId])
 }
 
 export function getLastNotified(watchId: number): number | null {
-  const row = db.prepare('SELECT last_notified_at FROM watches WHERE id = ?').get(watchId) as any
+  const row = db.get('SELECT last_notified_at FROM watches WHERE id = $1', [watchId]) as any
   return row?.last_notified_at ?? null
 }
 
 export function setGracePeriod(watchId: number, endTimestamp: number): void {
-  db.prepare('UPDATE watches SET grace_period_end = ? WHERE id = ?').run(endTimestamp, watchId)
+  db.run('UPDATE watches SET grace_period_end = $1 WHERE id = $2', [endTimestamp, watchId])
 }
 
 export function getGracePeriodEnd(watchId: number): number | null {
-  const row = db.prepare('SELECT grace_period_end FROM watches WHERE id = ?').get(watchId) as any
+  const row = db.get('SELECT grace_period_end FROM watches WHERE id = $1', [watchId]) as any
   return row?.grace_period_end ?? null
 }
 
@@ -119,16 +114,16 @@ export function isInGracePeriod(watchId: number): boolean {
 }
 
 export function setWatchStatus(watchId: number, status: string): void {
-  db.prepare('UPDATE watches SET status = ? WHERE id = ?').run(status, watchId)
+  db.run('UPDATE watches SET status = $1 WHERE id = $2', [status, watchId])
 }
 
 export function getWatchStatus(watchId: number): string {
-  const row = db.prepare('SELECT status FROM watches WHERE id = ?').get(watchId) as any
+  const row = db.get('SELECT status FROM watches WHERE id = $1', [watchId]) as any
   return row?.status ?? 'active'
 }
 
 export function getWatchByUserAndInfirmary(telegramId: number, infirmaryId: number): WatchWithSmartData | null {
-  const row = db.prepare(`
+  const row = db.get(`
     SELECT 
       id as watchId,
       telegram_id as telegramId,
@@ -138,13 +133,11 @@ export function getWatchByUserAndInfirmary(telegramId: number, infirmaryId: numb
       grace_period_end as gracePeriodEnd,
       status
     FROM watches
-    WHERE telegram_id = ? AND infirmary_id = ? AND active = 1
-  `).get(telegramId, infirmaryId) as WatchWithSmartData | undefined
+    WHERE telegram_id = $1 AND infirmary_id = $2 AND active = 1
+  `, [telegramId, infirmaryId]) as WatchWithSmartData | undefined
   
   return row ?? null
 }
-
-// ================= WATCH HISTORY FUNCTIONS =================
 
 export function recordNotificationEvent(
   watchId: number, 
@@ -152,20 +145,20 @@ export function recordNotificationEvent(
   infirmaryId: number, 
   attemptNumber: number
 ): void {
-  db.prepare(`
+  db.run(`
     INSERT INTO watch_history (watch_id, telegram_id, infirmary_id, attempt_number)
-    VALUES (?, ?, ?, ?)
-  `).run(watchId, telegramId, infirmaryId, attemptNumber)
+    VALUES ($1, $2, $3, $4)
+  `, [watchId, telegramId, infirmaryId, attemptNumber])
 }
 
 export function recordUserResponse(watchId: number, response: 'booked' | 'continue' | 'stop'): void {
-  db.prepare(`
+  db.run(`
     UPDATE watch_history 
-    SET user_response = ? 
-    WHERE watch_id = ? 
+    SET user_response = $1 
+    WHERE watch_id = $2 
     ORDER BY id DESC 
     LIMIT 1
-  `).run(response, watchId)
+  `, [response, watchId])
 }
 
 export function getNotificationHistory(watchId: number): Array<{
@@ -174,14 +167,14 @@ export function getNotificationHistory(watchId: number): Array<{
   attemptNumber: number
   userResponse: string | null
 }> {
-  return db.prepare(`
+  return db.all(`
     SELECT 
       id,
       notified_at as notifiedAt,
       attempt_number as attemptNumber,
       user_response as userResponse
     FROM watch_history
-    WHERE watch_id = ?
+    WHERE watch_id = $1
     ORDER BY notified_at DESC
-  `).all(watchId) as any
+  `, [watchId]) as any
 }

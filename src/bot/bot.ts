@@ -791,12 +791,12 @@ export function createBot() {
   bot.command('stats', async (ctx) => {
     if (!isAdmin(ctx)) return
     
-    const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as any).count
-    const watchCount = (db.prepare('SELECT COUNT(*) as count FROM watches WHERE active = 1').get() as any).count
-    const todayNotifications = (db.prepare(`
+    const userCount = (db.get('SELECT COUNT(*) as count FROM users') as any)?.count ?? 0
+    const watchCount = (db.get('SELECT COUNT(*) as count FROM watches WHERE active = 1') as any)?.count ?? 0
+    const todayNotifications = (db.get(`
       SELECT COUNT(*) as count FROM watches 
       WHERE active = 0 AND created_at > strftime('%s','now','-1 day')
-    `).get() as any).count
+    `) as any)?.count ?? 0
     
     await ctx.reply(
       '📊 *آمار ربات*\n\n' +

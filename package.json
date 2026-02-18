@@ -9,14 +9,15 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@types/pg": "^8.16.0",
     "better-sqlite3": "^9.4.0",
     "dotenv": "^16.4.5",
     "grammy": "^1.24.0",
     "https-proxy-agent": "^7.0.6",
     "lru-cache": "^10.2.2",
     "p-queue": "^8.0.1",
-    "socks-proxy-agent": "^8.0.5",
-    "undici": "^6.18.1"
+    "pg": "^8.18.0",
+    "socks-proxy-agent": "^8.0.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

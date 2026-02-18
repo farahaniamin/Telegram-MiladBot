@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: milad-appointment-bot
+    env: node
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: CHECK_INTERVAL_MS
+        value: 120000
+      - key: USE_PROXY
+        value: false
+
+databases:
+  - name: milad-bot-db
+    region: frankfurt
+    plan: free
