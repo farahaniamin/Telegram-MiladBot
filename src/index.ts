@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js'
+import { initializeConfig, CONFIG } from './config.js'
 import { createBot } from './bot/bot.js'
 import { validatePatient } from './services/hospital.client.js'
 import { runSchedulerTick } from './core/scheduler.js'
@@ -8,6 +8,7 @@ import { formatTimingMessage } from './core/format.js'
 import { setDatabase, initializeDatabase } from './storage/db.js'
 import { InlineKeyboard } from 'grammy'
 import type { D1Database } from '@cloudflare/workers-types'
+import type { Update } from 'grammy/types'
 
 // Environment type definition
 export interface Env {
@@ -15,6 +16,8 @@ export interface Env {
   BOT_TOKEN: string
   ADMIN_IDS: string
   SYSTEM_NATIONAL_CODE: string
+  DEFAULT_INTERVAL_MIN?: string
+  JITTER_SEC?: string
 }
 
 let bot: ReturnType<typeof createBot> | null = null
@@ -22,6 +25,15 @@ let isInitialized = false
 
 async function initialize(env: Env) {
   if (isInitialized) return
+  
+  // Initialize config from environment
+  initializeConfig({
+    BOT_TOKEN: env.BOT_TOKEN,
+    ADMIN_IDS: env.ADMIN_IDS,
+    SYSTEM_NATIONAL_CODE: env.SYSTEM_NATIONAL_CODE,
+    DEFAULT_INTERVAL_MIN: env.DEFAULT_INTERVAL_MIN ?? undefined,
+    JITTER_SEC: env.JITTER_SEC ?? undefined
+  })
   
   // Set up database
   setDatabase(env.DB)
@@ -64,7 +76,7 @@ export default {
       
       // Handle webhook from Telegram
       if (url.pathname === '/webhook' && request.method === 'POST') {
-        const update = await request.json()
+        const update = await request.json() as Update
         await bot.handleUpdate(update)
         return new Response('OK', { status: 200 })
       }
