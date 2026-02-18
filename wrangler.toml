@@ -10,7 +10,7 @@ triggers = { crons = ["*/2 * * * *"] }
 [[d1_databases]]
 binding = "DB"
 database_name = "milad-bot-db"
-database_id = "your-database-id-here"
+database_id = "964fc415-dae0-4f0b-878a-cc45e0a0d7fe"
 
 # Secrets (set these with 'wrangler secret put')
 # BOT_TOKEN
