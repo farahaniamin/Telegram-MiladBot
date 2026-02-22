@@ -5,6 +5,7 @@ export async function seedInfirmaries(items: Infirmary[]) {
   for (const r of items) {
     await db.run('INSERT INTO infirmaries (id, code, title) VALUES ($1, $2, $3) ON CONFLICT(id) DO NOTHING', [r.id, r.code, r.title])
   }
+  console.log(`✅ Seeded ${items.length} infirmaries`)
 }
 
 export async function listInfirmaries(): Promise<Array<{ id: number; code: string | null; title: string }>> {

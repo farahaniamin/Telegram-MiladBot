@@ -38,7 +38,7 @@ async function bootstrap() {
   }
 
   // Seed infirmaries (static list extracted from your HTML)
-  seedInfirmaries(INFIRMARY_SEED)
+  await seedInfirmaries(INFIRMARY_SEED)
 
   // Log proxy configuration
   const useProxy = await isLocalProxyEnabled()
