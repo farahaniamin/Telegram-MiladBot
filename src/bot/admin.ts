@@ -7,9 +7,9 @@ export function isAdmin(ctx: Context): boolean {
   return !!id && CONFIG.ADMIN_IDS.has(id)
 }
 
-export function getProxyStatus(): string {
-  const proxy = isLocalProxyEnabled() ? '✅ On' : '❌ Off'
-  const worker = isApiWorkerEnabled() ? '✅ On' : '❌ Off'
+export async function getProxyStatus(): Promise<string> {
+  const proxy = await isLocalProxyEnabled() ? '✅ On' : '❌ Off'
+  const worker = await isApiWorkerEnabled() ? '✅ On' : '❌ Off'
   return `🌐 Connection Settings:\n- Local Proxy: ${proxy}\n- API Worker: ${worker}`
 }
 

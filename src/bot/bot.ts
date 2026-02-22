@@ -7,7 +7,6 @@ import {
   confirmKeyboard, 
   cancelWatchesKeyboard,
   intervalKeyboard,
-  infirmaryDetailKeyboard,
   clinicActionKeyboard,
   noAppointmentsKeyboard
 } from './keyboards.js'
@@ -30,10 +29,8 @@ function isValidNationalCode(input: string) {
   return /^\d{10}$/.test(input)
 }
 
-// Store selected infirmary in per-user memory (simple map)
 const selectedInfirmary = new Map<number, number>()
 
-// Error handler helper
 async function handleError(ctx: any, error: any, action: string) {
   console.error(`Error during ${action}:`, error)
   
@@ -68,14 +65,12 @@ async function handleError(ctx: any, error: any, action: string) {
   }
 }
 
-export function createBot() {
+export async function createBot() {
   console.log('🔧 Creating bot with configuration...')
-  const botConfig = getBotConfig()
+  const botConfig = await getBotConfig()
   console.log('  - Bot config:', JSON.stringify(botConfig, null, 2))
   
   const bot = new Bot(CONFIG.BOT_TOKEN, botConfig)
-
-  // ================= USER COMMANDS =================
 
   bot.command('start', async (ctx) => {
     console.log(`📩 /start received from user ${ctx.from?.id}`)
@@ -83,9 +78,8 @@ export function createBot() {
     if (!uid) return
     
     const userName = ctx.from?.first_name || 'کاربر'
-    const nc = getUserNationalCode(uid)
+    const nc = await getUserNationalCode(uid)
     
-    // Welcome message
     const welcomeMessage = 
       `👋 سلام ${userName} عزیز!\n\n` +
       `🏥 *به ربات نوبت‌دهی بیمارستان میلاد خوش آمدید.*\n\n` +
@@ -108,7 +102,6 @@ export function createBot() {
       return
     }
 
-    // User already registered
     const kb = mainMenuKeyboard()
     await ctx.reply(
       welcomeMessage + '\n\n✅ *کد ملی شما:* `' + nc + '`\n\nیکی از گزینه‌ها را انتخاب کنید:',
@@ -118,7 +111,7 @@ export function createBot() {
 
   bot.command('help', async (ctx) => {
     const uid = ctx.from?.id
-    const nc = uid ? getUserNationalCode(uid) : null
+    const nc = uid ? await getUserNationalCode(uid) : null
     
     let helpText = 
       '📋 *راهنمای استفاده از ربات*\n\n' +
@@ -149,7 +142,7 @@ export function createBot() {
     const uid = ctx.from?.id
     if (!uid) return
     
-    const watches = listActiveWatchesWithDetails(uid)
+    const watches = await listActiveWatchesWithDetails(uid)
     
     if (watches.length === 0) {
       await ctx.reply(
@@ -164,7 +157,6 @@ export function createBot() {
     }
     
     const kb = cancelWatchesKeyboard(watches)
-    
     const watchesList = watches.map(w => `• ${w.infirmaryTitle}`).join('\n')
     
     await ctx.reply(
@@ -175,9 +167,6 @@ export function createBot() {
     )
   })
 
-
-  // ================= MESSAGE HANDLERS =================
-
   bot.on('message:text', async (ctx) => {
     const uid = ctx.from?.id
     if (!uid) return
@@ -187,7 +176,6 @@ export function createBot() {
 
     console.log(`📨 Message from ${uid}: ${text}`)
 
-    // Admin command fallback in text
     if (text.startsWith('/')) return
 
     if (sess.step === 'await_national_code') {
@@ -201,13 +189,11 @@ export function createBot() {
         return
       }
       
-      // Show loading message
       const loadingMsg = await ctx.reply('⏳ در حال بررسی کد ملی در سامانه بیمارستان...')
       
       try {
         const p = await validatePatient(text)
         
-        // Delete loading message
         await ctx.api.deleteMessage(uid, loadingMsg.message_id).catch(() => {})
         
         if (!p.allowToSetTimming) {
@@ -223,32 +209,29 @@ export function createBot() {
           return
         }
         
-        upsertUserNationalCode(uid, text)
+        await upsertUserNationalCode(uid, text)
         setSession(uid, { step: 'idle' })
         
+        const kb = await infirmaryKeyboard(uid)
         await ctx.reply(
           `✅ *کد ملی با موفقیت ثبت شد*\n\n` +
           `👤 نام: ${p.fullName || 'نامشخص'}\n` +
           `🆔 کد ملی: \`${text}\`\n\n` +
           `حالا می‌توانید درمانگاه مورد نظر را انتخاب کنید:`,
-          { parse_mode: 'Markdown', reply_markup: infirmaryKeyboard(uid) }
+          { parse_mode: 'Markdown', reply_markup: kb }
         )
       } catch (err) {
-        // Delete loading message
         await ctx.api.deleteMessage(uid, loadingMsg.message_id).catch(() => {})
-        
         await handleError(ctx, err, 'national_code_validation')
       }
     }
   })
 
-  // ================= CALLBACK QUERY HANDLERS =================
-
   bot.callbackQuery(/^inf:(\d+)$/, async (ctx) => {
     const uid = ctx.from?.id
     if (!uid) return
     const infirmaryId = Number(ctx.match[1])
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     if (!inf) {
       await ctx.answerCallbackQuery({ text: 'درمانگاه پیدا نشد' })
       return
@@ -261,8 +244,7 @@ export function createBot() {
       return
     }
 
-    // Check if user already has a watch for this clinic
-    const userWatches = listActiveWatchesByUser(uid)
+    const userWatches = await listActiveWatchesByUser(uid)
     const isWatched = userWatches.some(w => w.infirmaryId === infirmaryId)
 
     await ctx.answerCallbackQuery({ text: `انتخاب شد: ${inf.title}` })
@@ -285,14 +267,14 @@ export function createBot() {
       await ctx.answerCallbackQuery({ text: 'اول درمانگاه را انتخاب کن' })
       return
     }
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     if (!inf?.code) {
       await ctx.answerCallbackQuery({ text: 'این درمانگاه هنوز کد ندارد' })
       return
     }
 
     await ctx.answerCallbackQuery({ text: 'در حال بررسی...' })
-    const userNC = getUserNationalCode(uid)
+    const userNC = await getUserNationalCode(uid)
     if (!userNC) {
       setSession(uid, { step: 'await_national_code' })
       await ctx.reply('کد ملی ثبت نشده. لطفاً کد ملی را وارد کنید:')
@@ -331,13 +313,13 @@ export function createBot() {
       await ctx.answerCallbackQuery({ text: 'اول درمانگاه را انتخاب کن' })
       return
     }
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     if (!inf?.code) {
       await ctx.answerCallbackQuery({ text: 'این درمانگاه هنوز کد ندارد' })
       return
     }
 
-    addWatch(uid, infirmaryId)
+    await addWatch(uid, infirmaryId)
     await ctx.answerCallbackQuery({ text: 'فعال شد' })
     await ctx.reply(
       `🔔 *اعلان فعال شد*\n\n` +
@@ -352,7 +334,6 @@ export function createBot() {
     )
   })
 
-  // NEW: Check appointments instantly when user clicks "خبرم کن"
   bot.callbackQuery('action:check_then_watch', async (ctx) => {
     const uid = ctx.from?.id
     if (!uid) return
@@ -361,14 +342,13 @@ export function createBot() {
       await ctx.answerCallbackQuery({ text: 'اول درمانگاه را انتخاب کن' })
       return
     }
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     if (!inf?.code) {
       await ctx.answerCallbackQuery({ text: 'این درمانگاه هنوز کد ندارد' })
       return
     }
 
-    // Check if user already has a watch for this clinic
-    const userWatches = listActiveWatchesByUser(uid)
+    const userWatches = await listActiveWatchesByUser(uid)
     const isWatched = userWatches.some(w => w.infirmaryId === infirmaryId)
     
     if (isWatched) {
@@ -390,7 +370,7 @@ export function createBot() {
     }
 
     await ctx.answerCallbackQuery({ text: 'در حال بررسی...' })
-    const userNC = getUserNationalCode(uid)
+    const userNC = await getUserNationalCode(uid)
     if (!userNC) {
       setSession(uid, { step: 'await_national_code' })
       await ctx.reply('کد ملی ثبت نشده. لطفاً کد ملی را وارد کنید:')
@@ -400,7 +380,6 @@ export function createBot() {
     try {
       const res = await searchInfirmaryTiming({ id: inf.id, code: inf.code, title: inf.title }, userNC)
       if (res.length === 0) {
-        // No appointments - ask for confirmation to set watch
         await ctx.editMessageText(
           `❌ *در حال حاضر نوبتی پیدا نشد*\n\n` +
           `برای درمانگاه "${inf.title}" نوبتی موجود نیست.\n\n` +
@@ -411,7 +390,6 @@ export function createBot() {
           }
         )
       } else {
-        // Appointments found - show them with back + home buttons
         await ctx.reply(
           formatTimingMessage(inf.title, res),
           {
@@ -426,21 +404,19 @@ export function createBot() {
     }
   })
 
-  // NEW: Confirm and create watch after checking (no appointments found)
   bot.callbackQuery(/^action:confirm_watch:(\d+)$/, async (ctx) => {
     const uid = ctx.from?.id
     if (!uid) return
     
     const infirmaryId = Number(ctx.match[1])
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     
     if (!inf?.code) {
       await ctx.answerCallbackQuery({ text: 'این درمانگاه هنوز کد ندارد' })
       return
     }
 
-    // Check if user already has a watch for this clinic
-    const userWatches = listActiveWatchesByUser(uid)
+    const userWatches = await listActiveWatchesByUser(uid)
     const isWatched = userWatches.some(w => w.infirmaryId === infirmaryId)
     
     if (isWatched) {
@@ -461,15 +437,13 @@ export function createBot() {
       return
     }
 
-    addWatch(uid, infirmaryId)
+    await addWatch(uid, infirmaryId)
     await ctx.answerCallbackQuery({ text: '✅ اعلان فعال شد' })
     await ctx.editMessageText(
       `✅ *اعلان فعال شد*\n\n` +
       `برای "${inf.title}"\n\n` +
       `🔔 به محض باز شدن نوبت به شما اطلاع می‌دهیم.`,
-      { 
-        parse_mode: 'Markdown'
-      }
+      { parse_mode: 'Markdown' }
     )
   })
 
@@ -481,7 +455,7 @@ export function createBot() {
       await ctx.answerCallbackQuery({ text: 'اول درمانگاه را انتخاب کن' })
       return
     }
-    deactivateWatch(uid, infirmaryId)
+    await deactivateWatch(uid, infirmaryId)
     await ctx.answerCallbackQuery({ text: 'غیرفعال شد' })
     await ctx.reply('✅ خبررسانی برای این درمانگاه غیرفعال شد.')
   })
@@ -491,9 +465,9 @@ export function createBot() {
     if (!uid) return
     
     const infirmaryId = Number(ctx.match[1])
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     
-    deactivateWatch(uid, infirmaryId)
+    await deactivateWatch(uid, infirmaryId)
     await ctx.answerCallbackQuery({ text: '✅ لغو شد' })
     
     await ctx.editMessageText(
@@ -502,15 +476,14 @@ export function createBot() {
     )
   })
 
-  // NEW: Cancel watch from clinic view
   bot.callbackQuery(/^action:cancel_watch:(\d+)$/, async (ctx) => {
     const uid = ctx.from?.id
     if (!uid) return
     
     const infirmaryId = Number(ctx.match[1])
-    const inf = getInfirmaryById(infirmaryId)
+    const inf = await getInfirmaryById(infirmaryId)
     
-    deactivateWatch(uid, infirmaryId)
+    await deactivateWatch(uid, infirmaryId)
     await ctx.answerCallbackQuery({ text: '✅ اعلان لغو شد' })
     
     await ctx.editMessageText(
@@ -527,16 +500,16 @@ export function createBot() {
     )
   })
 
-
   bot.callbackQuery('action:show_infirmaries', async (ctx) => {
     const uid = ctx.from?.id
     if (!uid) return
     await ctx.answerCallbackQuery({ text: 'درمانگاه‌ها' })
+    const kb = await infirmaryKeyboard(uid)
     await ctx.editMessageText(
       '🏥 *لیست درمانگاه‌های موجود:*\n\nدرمانگاه مورد نظر خود را انتخاب کنید:', 
       { 
         parse_mode: 'Markdown',
-        reply_markup: infirmaryKeyboard(uid) 
+        reply_markup: kb 
       }
     )
   })
@@ -545,7 +518,7 @@ export function createBot() {
     const uid = ctx.from?.id
     if (!uid) return
     
-    const watches = listActiveWatchesWithDetails(uid)
+    const watches = await listActiveWatchesWithDetails(uid)
     if (watches.length === 0) {
       await ctx.answerCallbackQuery({ text: 'شما اعلان فعالی ندارید' })
       return
@@ -564,7 +537,7 @@ export function createBot() {
     const uid = ctx.from?.id
     if (!uid) return
     
-    const watches = listActiveWatchesWithDetails(uid)
+    const watches = await listActiveWatchesWithDetails(uid)
     
     if (watches.length === 0) {
       await ctx.answerCallbackQuery({ text: 'شما اعلانی ندارید' })
@@ -595,16 +568,13 @@ export function createBot() {
     )
   })
 
-  // ================= SIMPLIFIED SMART RE-WATCH HANDLERS =================
-
   bot.callbackQuery(/^smart_watch:(keep|deactivate):(.+)$/, async (ctx) => {
     const action = ctx.match[1] as 'keep' | 'deactivate'
     const infirmaryTitle = ctx.match[2]
     const uid = ctx.from?.id
     if (!uid) return
     
-    // Find the watch for this user and infirmary
-    const watches = listActiveWatchesWithDetails(uid)
+    const watches = await listActiveWatchesWithDetails(uid)
     const watch = watches.find(w => w.infirmaryTitle === infirmaryTitle)
     
     if (!watch) {
@@ -614,7 +584,6 @@ export function createBot() {
 
     switch(action) {
       case 'keep':
-        // User wants to keep watching - just acknowledge, watch stays active
         await ctx.answerCallbackQuery({ text: '✅ ادامه اعلان‌دهی' })
         await ctx.editMessageText(
           `✅ *ادامه اعلان‌دهی*\n\n` +
@@ -622,11 +591,9 @@ export function createBot() {
           `🔔 به محض باز شدن نوبت بعدی، دوباره به شما اطلاع می‌دهیم.`,
           { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard() }
         )
-        // Watch stays active, no changes needed
         break
         
       case 'deactivate':
-        // User wants to stop
         await ctx.answerCallbackQuery({ text: '❌ اعلان غیرفعال شد' })
         await ctx.editMessageText(
           `❌ *اعلان غیرفعال شد*\n\n` +
@@ -634,7 +601,7 @@ export function createBot() {
           `دیگر اعلانی برای این درمانگاه دریافت نخواهید کرد.`,
           { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard() }
         )
-        deactivateWatch(uid, watch.infirmaryId)
+        await deactivateWatch(uid, watch.infirmaryId)
         break
     }
   })
@@ -643,7 +610,7 @@ export function createBot() {
     await ctx.answerCallbackQuery({ text: 'راهنما' })
     
     const uid = ctx.from?.id
-    const nc = uid ? getUserNationalCode(uid) : null
+    const nc = uid ? await getUserNationalCode(uid) : null
     
     let helpText = 
       '📋 *راهنمای استفاده از ربات*\n\n' +
@@ -670,11 +637,9 @@ export function createBot() {
     )
   })
 
-  // ================= NAVIGATION HANDLERS =================
-
   bot.callbackQuery('action:main_menu', async (ctx) => {
     const uid = ctx.from?.id
-    const nc = uid ? getUserNationalCode(uid) : null
+    const nc = uid ? await getUserNationalCode(uid) : null
     
     await ctx.answerCallbackQuery()
     
@@ -711,9 +676,10 @@ export function createBot() {
       )
     } else {
       await ctx.answerCallbackQuery()
+      const kb = await infirmaryKeyboard(uid)
       await ctx.editMessageText(
         '🏥 *درمانگاه مورد نظر را انتخاب کنید:*',
-        { parse_mode: 'Markdown', reply_markup: infirmaryKeyboard(uid) }
+        { parse_mode: 'Markdown', reply_markup: kb }
       )
     }
   })
@@ -727,17 +693,12 @@ export function createBot() {
   })
 
   bot.callbackQuery(/^retry:(.+)$/, async (ctx) => {
-    const action = ctx.match[1]
     await ctx.answerCallbackQuery({ text: 'در حال تلاش مجدد...' })
-    // The user will need to manually retry the action
     await ctx.editMessageText(
       '🔄 لطفاً دوباره تلاش کنید.',
       { reply_markup: mainMenuKeyboard() }
     )
   })
-
-
-  // ================= ADMIN COMMANDS =================
 
   bot.command('admin_help', async (ctx) => {
     if (!isAdmin(ctx)) return
@@ -766,9 +727,9 @@ export function createBot() {
       console.log('  - Not authorized')
       return
     }
-    const interval = getIntervalMinutes()
-    const paused = isPaused()
-    const infs = listInfirmaries()
+    const interval = await getIntervalMinutes()
+    const paused = await isPaused()
+    const infs = await listInfirmaries()
     const configured = infs.filter(i => !!i.code).length
     const proxyStatus = getProxyStatus()
     
@@ -791,12 +752,18 @@ export function createBot() {
   bot.command('stats', async (ctx) => {
     if (!isAdmin(ctx)) return
     
-    const userCount = (db.get('SELECT COUNT(*) as count FROM users') as any)?.count ?? 0
-    const watchCount = (db.get('SELECT COUNT(*) as count FROM watches WHERE active = 1') as any)?.count ?? 0
-    const todayNotifications = (db.get(`
+    const userRow = await db.get('SELECT COUNT(*) as count FROM users')
+    const watchRow = await db.get('SELECT COUNT(*) as count FROM watches WHERE active = 1')
+    const todayRow = await db.get(`
       SELECT COUNT(*) as count FROM watches 
       WHERE active = 0 AND created_at > strftime('%s','now','-1 day')
-    `) as any)?.count ?? 0
+    `)
+    
+    const userCount = userRow?.count ?? 0
+    const watchCount = watchRow?.count ?? 0
+    const todayNotifications = todayRow?.count ?? 0
+    const interval = await getIntervalMinutes()
+    const paused = await isPaused()
     
     await ctx.reply(
       '📊 *آمار ربات*\n\n' +
@@ -808,9 +775,9 @@ export function createBot() {
       '├─────────────────┼──────────┤\n' +
       `│ ✅ اعلانات امروز│ ${String(todayNotifications).padStart(8)} │\n` +
       '├─────────────────┼──────────┤\n' +
-      `│ ⏱️ فاصله بررسی  │ ${String(getIntervalMinutes()).padStart(6)} دقیقه │\n` +
+      `│ ⏱️ فاصله بررسی  │ ${String(interval).padStart(6)} دقیقه │\n` +
       '├─────────────────┼──────────┤\n' +
-      `│ 🔄 وضعیت        │ ${isPaused() ? '⏸️ متوقف ' : '▶️ فعال  '} │\n` +
+      `│ 🔄 وضعیت        │ ${paused ? '⏸️ متوقف ' : '▶️ فعال  '} │\n` +
       '└─────────────────┴──────────┘\n' +
       '```',
       { parse_mode: 'Markdown' }
@@ -837,7 +804,7 @@ export function createBot() {
     }
     
     const minutes = Number(ctx.match[1])
-    setIntervalMinutes(minutes)
+    await setIntervalMinutes(minutes)
     await ctx.answerCallbackQuery({ text: `✅ تنظیم شد: ${minutes} دقیقه` })
     await ctx.editMessageText(
       `✅ *فاصله بررسی تنظیم شد*\n\n` +
@@ -868,7 +835,7 @@ export function createBot() {
       return
     }
     
-    setPaused(true)
+    await setPaused(true)
     await ctx.answerCallbackQuery({ text: '⏸️ متوقف شد' })
     await ctx.editMessageText(
       '⏸️ *بررسی نوبت‌ها متوقف شد*\n\n' +
@@ -879,7 +846,7 @@ export function createBot() {
 
   bot.command('resume', async (ctx) => {
     if (!isAdmin(ctx)) return
-    setPaused(false)
+    await setPaused(false)
     await ctx.reply(
       '▶️ *بررسی نوبت‌ها فعال شد*\n\n' +
       'ربات دوباره در حال بررسی نوبت‌ها است.',
@@ -889,7 +856,7 @@ export function createBot() {
 
   bot.command('seed', async (ctx) => {
     if (!isAdmin(ctx)) return
-    const infs = listInfirmaries()
+    const infs = await listInfirmaries()
     const lines = infs.map(i => `- ${i.title} | id=${i.id} | code=${i.code ?? 'NULL'}`)
     await ctx.reply(`📋 درمانگاه‌ها:\n${lines.join('\n')}`)
   })
@@ -903,7 +870,7 @@ export function createBot() {
       await ctx.reply('استفاده: /setcode <infirmaryId> <code>\nمثال: /setcode 1000 242')
       return
     }
-    setInfirmaryCode(id, code)
+    await setInfirmaryCode(id, code)
     await ctx.reply(`✅ code برای درمانگاه id=${id} تنظیم شد: ${code}`)
   })
 
@@ -913,14 +880,14 @@ export function createBot() {
     const state = parts[1]?.toLowerCase()
     
     if (state === 'on') {
-      setLocalProxyEnabled(true)
+      await setLocalProxyEnabled(true)
       await ctx.reply(
         '✅ *Local Proxy فعال شد*\n\n' +
         '⚠️ برای اعمال تغییرات، ربات را ری‌استارت کنید.',
         { parse_mode: 'Markdown' }
       )
     } else if (state === 'off') {
-      setLocalProxyEnabled(false)
+      await setLocalProxyEnabled(false)
       await ctx.reply(
         '✅ *Local Proxy غیرفعال شد*\n\n' +
         '⚠️ برای اعمال تغییرات، ربات را ری‌استارت کنید.',
@@ -937,14 +904,14 @@ export function createBot() {
     const state = parts[1]?.toLowerCase()
     
     if (state === 'on') {
-      setApiWorkerEnabled(true)
+      await setApiWorkerEnabled(true)
       await ctx.reply(
         '✅ *API Worker فعال شد*\n\n' +
         '⚠️ برای اعمال تغییرات، ربات را ری‌استارت کنید.',
         { parse_mode: 'Markdown' }
       )
     } else if (state === 'off') {
-      setApiWorkerEnabled(false)
+      await setApiWorkerEnabled(false)
       await ctx.reply(
         '✅ *API Worker غیرفعال شد*\n\n' +
         '⚠️ برای اعمال تغییرات، ربات را ری‌استارت کنید.',
@@ -957,7 +924,7 @@ export function createBot() {
 
   bot.command('netstatus', async (ctx) => {
     if (!isAdmin(ctx)) return
-    const status = getProxyStatus()
+    const status = await getProxyStatus()
     await ctx.reply(status)
   })
 

@@ -31,21 +31,19 @@ const EMOJI_BY_ID: Record<number, string> = {
 
 function labelFor(id: number, title: string, isWatched: boolean = false) {
   const e = EMOJI_BY_ID[id] ?? '🏥'
-  // Truncate long names
   const shortTitle = title.length > 15 ? title.substring(0, 15) + '...' : title
-  const watchIcon = isWatched ? '🔔 ' : ''  // Add bell if user is watching this clinic
+  const watchIcon = isWatched ? '🔔 ' : ''
   return `${watchIcon}${e} ${shortTitle}`
 }
 
-export function infirmaryKeyboard(userId?: number) {
+export async function infirmaryKeyboard(userId?: number) {
   const kb = new InlineKeyboard()
-  const items = listInfirmaries().filter(it => it.code) // Only show configured infirmaries
+  const allItems = await listInfirmaries()
+  const items = allItems.filter(it => it.code)
   
-  // Get user's watches to show bell icon on watched clinics
-  const userWatches = userId ? listActiveWatchesByUser(userId) : []
+  const userWatches = userId ? await listActiveWatchesByUser(userId) : []
   const watchedIds = new Set(userWatches.map(w => w.infirmaryId))
 
-  // Show in 2 columns with bell icon for watched clinics
   for (let i = 0; i < items.length; i += 2) {
     const first = items[i]
     const second = items[i + 1]
@@ -59,7 +57,6 @@ export function infirmaryKeyboard(userId?: number) {
     }
   }
 
-  // Only show Main Menu and My Watches buttons (each on separate row)
   kb.row()
   kb.text('🏠 منوی اصلی', 'action:main_menu')
   kb.row()
@@ -137,7 +134,6 @@ export function infirmaryDetailKeyboard(infirmaryId: number, isWatched: boolean)
   return kb
 }
 
-// New keyboard for clinic action (after selecting a clinic)
 export function clinicActionKeyboard(infirmaryId: number, isWatched: boolean = false): InlineKeyboard {
   const kb = new InlineKeyboard()
     .text('🔍 جستجوی نوبت', 'action:search')
@@ -156,7 +152,6 @@ export function clinicActionKeyboard(infirmaryId: number, isWatched: boolean = f
   return kb
 }
 
-// New keyboard when no appointments found (asks for confirmation)
 export function noAppointmentsKeyboard(infirmaryId: number, isWatched: boolean = false): InlineKeyboard {
   const kb = new InlineKeyboard()
   

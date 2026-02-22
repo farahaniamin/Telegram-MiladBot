@@ -131,7 +131,7 @@ function toSqliteParams(sql: string, params: any[]): [string, any[]] {
 }
 
 export const db = {
-  run(sql: string, params: any[] = []): any {
+  async run(sql: string, params: any[] = []): Promise<any> {
     if (isPg) {
       return pgPool.query(sql, params)
     }
@@ -139,17 +139,19 @@ export const db = {
     return sqliteDb.prepare(sqliteSql).run(...sqliteParams)
   },
   
-  get(sql: string, params: any[] = []): any {
+  async get(sql: string, params: any[] = []): Promise<any> {
     if (isPg) {
-      return pgPool.query(sql, params).then(r => r.rows[0])
+      const r = await pgPool.query(sql, params)
+      return r.rows[0]
     }
     const [sqliteSql, sqliteParams] = toSqliteParams(sql, params)
     return sqliteDb.prepare(sqliteSql).get(...sqliteParams)
   },
   
-  all(sql: string, params: any[] = []): any {
+  async all(sql: string, params: any[] = []): Promise<any[]> {
     if (isPg) {
-      return pgPool.query(sql, params).then(r => r.rows)
+      const r = await pgPool.query(sql, params)
+      return r.rows
     }
     const [sqliteSql, sqliteParams] = toSqliteParams(sql, params)
     return sqliteDb.prepare(sqliteSql).all(...sqliteParams)

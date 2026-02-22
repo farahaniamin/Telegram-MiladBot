@@ -15,8 +15,8 @@ export function startScheduler(notifyWithButtons: NotifyWithButtonsFn) {
     if (!running) return
 
     try {
-      if (!isPaused()) {
-        const groups = getActiveWatchesGrouped()
+      if (!(await isPaused())) {
+        const groups = await getActiveWatchesGrouped()
         for (const g of groups) {
           await processWatchGroup(g, notifyWithButtons)
         }
@@ -24,7 +24,7 @@ export function startScheduler(notifyWithButtons: NotifyWithButtonsFn) {
     } catch {
       // swallow; backoff is handled by longer interval below
     } finally {
-      const intervalMin = getIntervalMinutes()
+      const intervalMin = await getIntervalMinutes()
       const delay = Math.max(15_000, intervalMin * 60_000 + jitterMs())
       setTimeout(tick, delay)
     }

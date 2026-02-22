@@ -30,8 +30,8 @@ async function bootstrap() {
   seedInfirmaries(INFIRMARY_SEED)
 
   // Log proxy configuration
-  const useProxy = isLocalProxyEnabled()
-  const useWorker = isApiWorkerEnabled()
+  const useProxy = await isLocalProxyEnabled()
+  const useWorker = await isApiWorkerEnabled()
   console.log('📡 Connection settings:')
   console.log(`  - Local Proxy: ${useProxy ? 'ON' : 'OFF'} (${CONFIG.PROXY_URL})`)
   console.log(`  - API Worker: ${useWorker ? 'ON' : 'OFF'} (${CONFIG.API_URL})`)
@@ -51,7 +51,7 @@ async function bootstrap() {
   }
 
   // Create bot instance with configuration
-  const bot = createBot()
+  const bot = await createBot()
 
   // Simplified Smart Re-watch: Send notification with buttons immediately
   startScheduler(async (userId: number, infirmaryTitle: string, results: any[], watchId: number) => {

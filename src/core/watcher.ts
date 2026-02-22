@@ -17,7 +17,6 @@ export type WatchGroup = {
   userIds: number[]
 }
 
-// New type for notification with buttons
 export type NotifyWithButtonsFn = (
   userId: number, 
   infirmaryTitle: string, 
@@ -26,19 +25,16 @@ export type NotifyWithButtonsFn = (
 ) => Promise<void>
 
 export async function processWatchGroup(group: WatchGroup, notifyWithButtons: NotifyWithButtonsFn) {
-  const infirmaryRow = getInfirmaryById(group.infirmaryId)
+  const infirmaryRow = await getInfirmaryById(group.infirmaryId)
   if (!infirmaryRow) return
 
-  // If code unknown, skip to avoid useless/invalid calls.
   if (!infirmaryRow.code) return
 
   const cached = timingCache.get(group.infirmaryId)
   if (cached && Date.now() - cached.checkedAt < 5_000) {
-    // tiny guard to avoid immediate double checks in same tick
     return
   }
 
-  // Cache key for hasSlot; we still call at most once per TTL.
   if (timingCache.has(group.infirmaryId)) return
 
   await requestQueue.add(async () => {
@@ -52,7 +48,6 @@ export async function processWatchGroup(group: WatchGroup, notifyWithButtons: No
 
     if (!hasSlot) return
 
-    // SIMPLIFIED: Process each user individually
     for (const userId of group.userIds) {
       await processUserWatch(userId, group.infirmaryId, infirmaryRow.title, results, notifyWithButtons)
     }
@@ -66,15 +61,12 @@ async function processUserWatch(
   results: any[],
   notifyWithButtons: NotifyWithButtonsFn
 ) {
-  const watch = getWatchByUserAndInfirmary(userId, infirmaryId)
+  const watch = await getWatchByUserAndInfirmary(userId, infirmaryId)
   if (!watch) return
 
-  // Simplified: Always send notification with buttons
-  // Let the bot handle the user response
   await notifyWithButtons(userId, infirmaryTitle, results, watch.watchId)
   
-  // Track for analytics
-  incrementNotificationCount(watch.watchId)
-  setLastNotified(watch.watchId, Date.now())
-  recordNotificationEvent(watch.watchId, userId, infirmaryId, watch.notificationCount + 1)
+  await incrementNotificationCount(watch.watchId)
+  await setLastNotified(watch.watchId, Date.now())
+  await recordNotificationEvent(watch.watchId, userId, infirmaryId, watch.notificationCount + 1)
 }
