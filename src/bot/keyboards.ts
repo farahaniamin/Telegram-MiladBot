@@ -96,7 +96,8 @@ export function cancelWatchesKeyboard(watches: Array<{ watchId: number; infirmar
   const kb = new InlineKeyboard()
   
   watches.forEach(watch => {
-    kb.text(`❌ ${watch.infirmaryTitle.substring(0, 20)}`, `unwatch:${watch.infirmaryId}`).row()
+    const title = watch.infirmaryTitle ?? 'درمانگاه'
+    kb.text(`❌ ${title.substring(0, 20)}`, `unwatch:${watch.infirmaryId}`).row()
   })
   
   kb.row()
