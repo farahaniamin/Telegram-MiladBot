@@ -124,25 +124,34 @@ if (isPg) {
   `)
 }
 
+function toSqliteParams(sql: string, params: any[]): [string, any[]] {
+  let i = 1
+  const sqliteSql = sql.replace(/\$\d+/g, () => '?')
+  return [sqliteSql, params]
+}
+
 export const db = {
   run(sql: string, params: any[] = []): any {
     if (isPg) {
       return pgPool.query(sql, params)
     }
-    return sqliteDb.prepare(sql).run(...params)
+    const [sqliteSql, sqliteParams] = toSqliteParams(sql, params)
+    return sqliteDb.prepare(sqliteSql).run(...sqliteParams)
   },
   
   get(sql: string, params: any[] = []): any {
     if (isPg) {
       return pgPool.query(sql, params).then(r => r.rows[0])
     }
-    return sqliteDb.prepare(sql).get(...params)
+    const [sqliteSql, sqliteParams] = toSqliteParams(sql, params)
+    return sqliteDb.prepare(sqliteSql).get(...sqliteParams)
   },
   
   all(sql: string, params: any[] = []): any {
     if (isPg) {
       return pgPool.query(sql, params).then(r => r.rows)
     }
-    return sqliteDb.prepare(sql).all(...params)
+    const [sqliteSql, sqliteParams] = toSqliteParams(sql, params)
+    return sqliteDb.prepare(sqliteSql).all(...sqliteParams)
   }
 }
