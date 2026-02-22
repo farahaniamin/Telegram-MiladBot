@@ -11,15 +11,26 @@ import { InlineKeyboard } from 'grammy'
 
 const PORT = process.env.PORT || 3000
 const healthServer = http.createServer((req, res) => {
+  console.log(`🏥 Health check: ${req.method} ${req.url}`)
   if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }))
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache'
+    })
+    res.end(JSON.stringify({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    }))
   } else {
-    res.writeHead(404)
-    res.end()
+    res.writeHead(404, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ status: 'not_found', path: req.url }))
   }
 })
-healthServer.listen(PORT, () => console.log(`🏥 Health server listening on port ${PORT}`))
+
+healthServer.listen(PORT, () => {
+  console.log(`🏥 Health server listening on port ${PORT}`)
+})
 
 async function bootstrap() {
   if (!CONFIG.BOT_TOKEN) {
