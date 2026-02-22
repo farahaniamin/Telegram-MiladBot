@@ -1,3 +1,4 @@
+import http from 'http'
 import { CONFIG } from './config.js'
 import { createBot } from './bot/bot.js'
 import { validatePatient } from './services/hospital.client.js'
@@ -7,6 +8,18 @@ import { INFIRMARY_SEED } from './data/infirmaries.seed.js'
 import { formatTimingMessage } from './core/format.js'
 import { isLocalProxyEnabled, isApiWorkerEnabled } from './storage/settings.repo.js'
 import { InlineKeyboard } from 'grammy'
+
+const PORT = process.env.PORT || 3000
+const healthServer = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }))
+  } else {
+    res.writeHead(404)
+    res.end()
+  }
+})
+healthServer.listen(PORT, () => console.log(`🏥 Health server listening on port ${PORT}`))
 
 async function bootstrap() {
   if (!CONFIG.BOT_TOKEN) {
