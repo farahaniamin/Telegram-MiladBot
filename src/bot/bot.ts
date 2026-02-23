@@ -801,7 +801,15 @@ export async function createBot() {
   })
 
   bot.command('stats', async (ctx) => {
-    if (!isAdmin(ctx)) return
+    const userId = ctx.from?.id
+    console.log(`🔍 /stats - User ID: ${userId}, Type: ${typeof userId}`)
+    console.log(`🔍 /stats - ADMIN_IDS: ${Array.from(CONFIG.ADMIN_IDS)}`)
+    console.log(`🔍 /stats - isAdmin result: ${isAdmin(ctx)}`)
+    
+    if (!isAdmin(ctx)) {
+      await ctx.reply('⛔️ شما دسترسی ادمین ندارید.')
+      return
+    }
     
     try {
       console.log('📊 /stats command started')
@@ -1104,6 +1112,28 @@ export async function createBot() {
       console.error('❌ Error in /activity:', error)
       await ctx.reply('❌ خطا در دریافت فعالیت اخیر. لطفاً بعداً تلاش کنید.')
     }
+  })
+
+  bot.command('debug', async (ctx) => {
+    const userId = ctx.from?.id
+    const isUserAdmin = isAdmin(ctx)
+    const adminIds = Array.from(CONFIG.ADMIN_IDS)
+    
+    console.log('🔧 /debug command executed')
+    console.log(`   User ID: ${userId} (type: ${typeof userId})`)
+    console.log(`   isAdmin: ${isUserAdmin}`)
+    console.log(`   ADMIN_IDS: ${adminIds}`)
+    console.log(`   ADMIN_IDS types: ${adminIds.map(id => typeof id)}`)
+    
+    await ctx.reply(
+      '🔧 *اطلاعات دیباگ*\n\n' +
+      `🆔 شناسه کاربر: \`${userId}\`\n` +
+      `📊 تعداد ادمین‌ها: ${adminIds.length}\n` +
+      `📝 لیست ادمین‌ها: ${adminIds.join(', ') || '(خالی)'}\n` +
+      `✅ وضعیت شما: ${isUserAdmin ? '✅ ادمین هستید' : '⛔️ ادمین نیستید'}\n\n` +
+      '_این اطلاعات برای عیب‌یابی است._',
+      { parse_mode: 'Markdown' }
+    )
   })
 
   console.log('✅ Bot instance created with all handlers registered')

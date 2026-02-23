@@ -37,6 +37,12 @@ async function bootstrap() {
     throw new Error('BOT_TOKEN is missing. Set it in .env')
   }
 
+  // Log admin configuration for debugging
+  const adminIds = Array.from(CONFIG.ADMIN_IDS)
+  console.log('👨‍💼 Admin configuration:')
+  console.log(`  - ADMIN_IDS count: ${adminIds.length}`)
+  console.log(`  - ADMIN_IDS values: ${adminIds.join(', ') || '(none)'}`)
+
   // Seed infirmaries (static list extracted from your HTML)
   await seedInfirmaries(INFIRMARY_SEED)
 
