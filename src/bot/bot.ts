@@ -208,6 +208,22 @@ export async function createBot() {
         
         await ctx.api.deleteMessage(uid, loadingMsg.message_id).catch(() => {})
         
+        if (!p) {
+          await upsertUserNationalCode(uid, text)
+          setSession(uid, { step: 'idle' })
+          
+          const kb = await infirmaryKeyboard(uid)
+          await ctx.reply(
+            `👋 سلام کاربر عزیز!\n\n` +
+            `🏥 *به ربات نوبت‌دهی بیمارستان میلاد خوش آمدید.*\n\n` +
+            `⚠️ *این کد ملی در سامانه بیمارستان ثبت نشده است*\n\n` +
+            `✅ *کد ملی شما:* \`${text}\`\n\n` +
+            `یکی از گزینه‌ها را انتخاب کنید:`,
+            { parse_mode: 'Markdown', reply_markup: kb }
+          )
+          return
+        }
+        
         if (!p.allowToSetTimming) {
           await ctx.reply(
             '❌ *امکان دریافت نوبت وجود ندارد*\n\n' +
