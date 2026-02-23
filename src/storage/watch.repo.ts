@@ -184,19 +184,19 @@ export async function getNotificationHistory(watchId: number): Promise<Array<{
 }
 
 export async function getTotalActiveWatchesCount(): Promise<number> {
-  const row = await db.get('SELECT COUNT(*) as count FROM watches WHERE active = 1')
+  const row = await db.get('SELECT COUNT(*)::int as count FROM watches WHERE active = 1')
   return row?.count ?? 0
 }
 
 export async function getTotalNotificationsCount(): Promise<number> {
-  const row = await db.get('SELECT COUNT(*) as count FROM watch_history')
+  const row = await db.get('SELECT COUNT(*)::int as count FROM watch_history')
   return row?.count ?? 0
 }
 
 export async function getNotificationsCountSince(sinceHours: number): Promise<number> {
   const sinceTimestamp = Math.floor(Date.now() / 1000) - (sinceHours * 3600)
   const row = await db.get(
-    'SELECT COUNT(*) as count FROM watch_history WHERE notified_at > $1',
+    'SELECT COUNT(*)::int as count FROM watch_history WHERE notified_at > $1',
     [sinceTimestamp]
   )
   return row?.count ?? 0
@@ -211,7 +211,7 @@ export async function getUserResponsesStats(): Promise<{
   const rows = await db.all(`
     SELECT 
       user_response as "userResponse",
-      COUNT(*) as count
+      COUNT(*)::int as count
     FROM watch_history
     WHERE user_response IS NOT NULL
     GROUP BY user_response
@@ -225,7 +225,7 @@ export async function getUserResponsesStats(): Promise<{
   }
 
   const noResponseRow = await db.get(
-    'SELECT COUNT(*) as count FROM watch_history WHERE user_response IS NULL'
+    'SELECT COUNT(*)::int as count FROM watch_history WHERE user_response IS NULL'
   )
   stats.noResponse = noResponseRow?.count ?? 0
 
@@ -241,7 +241,7 @@ export async function getTopInfirmariesByWatches(limit: number = 10): Promise<Ar
     SELECT 
       w.infirmary_id as "infirmaryId",
       i.title as "title",
-      COUNT(*) as "watchCount"
+      COUNT(*)::int as "watchCount"
     FROM watches w
     JOIN infirmaries i ON w.infirmary_id = i.id
     WHERE w.active = 1
@@ -255,7 +255,7 @@ export async function getTopInfirmariesByWatches(limit: number = 10): Promise<Ar
 export async function getWatchesCreatedSince(sinceHours: number): Promise<number> {
   const sinceTimestamp = Math.floor(Date.now() / 1000) - (sinceHours * 3600)
   const row = await db.get(
-    'SELECT COUNT(*) as count FROM watches WHERE created_at > $1',
+    'SELECT COUNT(*)::int as count FROM watches WHERE created_at > $1',
     [sinceTimestamp]
   )
   return row?.count ?? 0
