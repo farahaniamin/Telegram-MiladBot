@@ -1123,6 +1123,7 @@ export async function createBot() {
   })
 
   bot.command('debug', async (ctx) => {
+    console.log('🔧 /debug command TRIGGERED - received message')
     try {
       const userId = ctx.from?.id
       const isUserAdmin = isAdmin(ctx)
