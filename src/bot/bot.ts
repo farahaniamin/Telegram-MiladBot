@@ -787,36 +787,47 @@ export async function createBot() {
   bot.command('stats', async (ctx) => {
     if (!isAdmin(ctx)) return
     
-    const userCount = await getTotalUsersCount()
-    const watchCount = await getTotalActiveWatchesCount()
-    const totalNotifications = await getTotalNotificationsCount()
-    const notifications24h = await getNotificationsCountSince(24)
-    const interval = await getIntervalMinutes()
-    const paused = await isPaused()
-    
-    await ctx.reply(
-      '📊 *آمار کلی ربات*\n\n' +
-      '```\n' +
-      '┌──────────────────────┬──────────┐\n' +
-      `│ 👥 کل کاربران        │ ${String(userCount).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ 🔔 اعلانات فعال      │ ${String(watchCount).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ 📨 کل اعلانات ارسالی │ ${String(totalNotifications).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ 📨 اعلانات ۲۴ ساعت   │ ${String(notifications24h).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ ⏱️ فاصله بررسی       │ ${String(interval).padStart(6)} دقیقه │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ 🔄 وضعیت             │ ${paused ? '⏸️ متوقف ' : '▶️ فعال  '} │\n` +
-      '└──────────────────────┴──────────┘\n' +
-      '```\n\n' +
-      'دستورات بیشتر:\n' +
-      '`/users` - آمار کاربران\n' +
-      '`/watches` - آمار اعلانات\n' +
-      '`/activity` - فعالیت اخیر',
-      { parse_mode: 'Markdown' }
-    )
+    try {
+      console.log('📊 /stats command started')
+      const userCount = await getTotalUsersCount()
+      console.log(`  - User count: ${userCount}`)
+      const watchCount = await getTotalActiveWatchesCount()
+      console.log(`  - Watch count: ${watchCount}`)
+      const totalNotifications = await getTotalNotificationsCount()
+      console.log(`  - Total notifications: ${totalNotifications}`)
+      const notifications24h = await getNotificationsCountSince(24)
+      console.log(`  - 24h notifications: ${notifications24h}`)
+      const interval = await getIntervalMinutes()
+      const paused = await isPaused()
+      
+      await ctx.reply(
+        '📊 *آمار کلی ربات*\n\n' +
+        '```\n' +
+        '┌──────────────────────┬──────────┐\n' +
+        `│ 👥 کل کاربران        │ ${String(userCount).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ 🔔 اعلانات فعال      │ ${String(watchCount).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ 📨 کل اعلانات ارسالی │ ${String(totalNotifications).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ 📨 اعلانات ۲۴ ساعت   │ ${String(notifications24h).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ ⏱️ فاصله بررسی       │ ${String(interval).padStart(6)} دقیقه │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ 🔄 وضعیت             │ ${paused ? '⏸️ متوقف ' : '▶️ فعال  '} │\n` +
+        '└──────────────────────┴──────────┘\n' +
+        '```\n\n' +
+        'دستورات بیشتر:\n' +
+        '`/users` - آمار کاربران\n' +
+        '`/watches` - آمار اعلانات\n' +
+        '`/activity` - فعالیت اخیر',
+        { parse_mode: 'Markdown' }
+      )
+      console.log('✅ /stats command completed')
+    } catch (error) {
+      console.error('❌ Error in /stats:', error)
+      await ctx.reply('❌ خطا در دریافت آمار. لطفاً بعداً تلاش کنید.')
+    }
   })
 
   bot.command('interval', async (ctx) => {
@@ -966,96 +977,117 @@ export async function createBot() {
   bot.command('users', async (ctx) => {
     if (!isAdmin(ctx)) return
 
-    const totalUsers = await getTotalUsersCount()
-    const newUsers24h = await getNewUsersCount(24)
-    const newUsers7d = await getNewUsersCount(24 * 7)
-    const topUsers = await getTopUsersByWatches(5)
+    try {
+      console.log('👥 /users command started')
+      const totalUsers = await getTotalUsersCount()
+      const newUsers24h = await getNewUsersCount(24)
+      const newUsers7d = await getNewUsersCount(24 * 7)
+      const topUsers = await getTopUsersByWatches(5)
 
-    let message =
-      '👥 *آمار کاربران*\n\n' +
-      '```\n' +
-      '┌─────────────────────┬──────────┐\n' +
-      `│ کل کاربران          │ ${String(totalUsers).padStart(8)} │\n` +
-      '├─────────────────────┼──────────┤\n' +
-      `│ کاربران جدید ۲۴ساعت │ ${String(newUsers24h).padStart(8)} │\n` +
-      '├─────────────────────┼──────────┤\n' +
-      `│ کاربران جدید ۷روز   │ ${String(newUsers7d).padStart(8)} │\n` +
-      '└─────────────────────┴──────────┘\n' +
-      '```\n\n'
+      let message =
+        '👥 *آمار کاربران*\n\n' +
+        '```\n' +
+        '┌─────────────────────┬──────────┐\n' +
+        `│ کل کاربران          │ ${String(totalUsers).padStart(8)} │\n` +
+        '├─────────────────────┼──────────┤\n' +
+        `│ کاربران جدید ۲۴ساعت │ ${String(newUsers24h).padStart(8)} │\n` +
+        '├─────────────────────┼──────────┤\n' +
+        `│ کاربران جدید ۷روز   │ ${String(newUsers7d).padStart(8)} │\n` +
+        '└─────────────────────┴──────────┘\n' +
+        '```\n\n'
 
-    if (topUsers.length > 0) {
-      message += '*فعال‌ترین کاربران:*\n'
-      topUsers.forEach((u, i) => {
-        message += `${i + 1}. \`${u.telegramId}\` - ${u.watchCount} اعلان\n`
-      })
+      if (topUsers.length > 0) {
+        message += '*فعال‌ترین کاربران:*\n'
+        topUsers.forEach((u, i) => {
+          message += `${i + 1}. \`${u.telegramId}\` - ${u.watchCount} اعلان\n`
+        })
+      }
+
+      await ctx.reply(message, { parse_mode: 'Markdown' })
+      console.log('✅ /users command completed')
+    } catch (error) {
+      console.error('❌ Error in /users:', error)
+      await ctx.reply('❌ خطا در دریافت آمار کاربران. لطفاً بعداً تلاش کنید.')
     }
-
-    await ctx.reply(message, { parse_mode: 'Markdown' })
   })
 
   bot.command('watches', async (ctx) => {
     if (!isAdmin(ctx)) return
 
-    const totalActive = await getTotalActiveWatchesCount()
-    const totalNotifications = await getTotalNotificationsCount()
-    const notifications24h = await getNotificationsCountSince(24)
-    const watches24h = await getWatchesCreatedSince(24)
-    const watches7d = await getWatchesCreatedSince(24 * 7)
-    const topInfirmaries = await getTopInfirmariesByWatches(5)
-    const responseStats = await getUserResponsesStats()
+    try {
+      console.log('🔔 /watches command started')
+      const totalActive = await getTotalActiveWatchesCount()
+      const totalNotifications = await getTotalNotificationsCount()
+      const notifications24h = await getNotificationsCountSince(24)
+      const watches24h = await getWatchesCreatedSince(24)
+      const watches7d = await getWatchesCreatedSince(24 * 7)
+      const topInfirmaries = await getTopInfirmariesByWatches(5)
+      const responseStats = await getUserResponsesStats()
 
-    let message =
-      '🔔 *آمار اعلانات*\n\n' +
-      '```\n' +
-      '┌──────────────────────┬──────────┐\n' +
-      `│ اعلانات فعال         │ ${String(totalActive).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ کل اعلانات ارسالی    │ ${String(totalNotifications).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ اعلانات ۲۴ ساعت      │ ${String(notifications24h).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ اعلانات جدید ۲۴ساعت  │ ${String(watches24h).padStart(8)} │\n` +
-      '├──────────────────────┼──────────┤\n' +
-      `│ اعلانات جدید ۷روز    │ ${String(watches7d).padStart(8)} │\n` +
-      '└──────────────────────┴──────────┘\n' +
-      '```\n\n'
+      let message =
+        '🔔 *آمار اعلانات*\n\n' +
+        '```\n' +
+        '┌──────────────────────┬──────────┐\n' +
+        `│ اعلانات فعال         │ ${String(totalActive).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ کل اعلانات ارسالی    │ ${String(totalNotifications).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ اعلانات ۲۴ ساعت      │ ${String(notifications24h).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ اعلانات جدید ۲۴ساعت  │ ${String(watches24h).padStart(8)} │\n` +
+        '├──────────────────────┼──────────┤\n' +
+        `│ اعلانات جدید ۷روز    │ ${String(watches7d).padStart(8)} │\n` +
+        '└──────────────────────┴──────────┘\n' +
+        '```\n\n'
 
-    message += '*پاسخ کاربران:*\n' +
-      `✅ رزرو کردند: ${responseStats.booked}\n` +
-      `🔄 ادامه دادند: ${responseStats.continue}\n` +
-      `⏹️ توقف دادند: ${responseStats.stop}\n` +
-      `⏳ بدون پاسخ: ${responseStats.noResponse}\n\n`
+      message += '*پاسخ کاربران:*\n' +
+        `✅ رزرو کردند: ${responseStats.booked}\n` +
+        `🔄 ادامه دادند: ${responseStats.continue}\n` +
+        `⏹️ توقف دادند: ${responseStats.stop}\n` +
+        `⏳ بدون پاسخ: ${responseStats.noResponse}\n\n`
 
-    if (topInfirmaries.length > 0) {
-      message += '*پرطرفدارترین درمانگاه‌ها:*\n'
-      topInfirmaries.forEach((inf, i) => {
-        message += `${i + 1}. ${inf.title.substring(0, 20)} - ${inf.watchCount} اعلان\n`
-      })
+      if (topInfirmaries.length > 0) {
+        message += '*پرطرفدارترین درمانگاه‌ها:*\n'
+        topInfirmaries.forEach((inf, i) => {
+          message += `${i + 1}. ${inf.title.substring(0, 20)} - ${inf.watchCount} اعلان\n`
+        })
+      }
+
+      await ctx.reply(message, { parse_mode: 'Markdown' })
+      console.log('✅ /watches command completed')
+    } catch (error) {
+      console.error('❌ Error in /watches:', error)
+      await ctx.reply('❌ خطا در دریافت آمار اعلانات. لطفاً بعداً تلاش کنید.')
     }
-
-    await ctx.reply(message, { parse_mode: 'Markdown' })
   })
 
   bot.command('activity', async (ctx) => {
     if (!isAdmin(ctx)) return
 
-    const notifications24h = await getNotificationsCountSince(24)
-    const notifications1h = await getNotificationsCountSince(1)
-    const newWatches24h = await getWatchesCreatedSince(24)
-    const newUsers24h = await getNewUsersCount(24)
+    try {
+      console.log('📈 /activity command started')
+      const notifications24h = await getNotificationsCountSince(24)
+      const notifications1h = await getNotificationsCountSince(1)
+      const newWatches24h = await getWatchesCreatedSince(24)
+      const newUsers24h = await getNewUsersCount(24)
 
-    await ctx.reply(
-      '📈 *فعالیت اخیر*\n\n' +
-      '*۲۴ ساعت گذشته:*\n' +
-      `• 📨 ${notifications24h} اعلان ارسال شده\n` +
-      `• 🔔 ${newWatches24h} اعلان جدید ایجاد شده\n` +
-      `• 👥 ${newUsers24h} کاربر جدید\n\n` +
-      '*۱ ساعت گذشته:*\n' +
-      `• 📨 ${notifications1h} اعلان ارسال شده\n\n` +
-      '📊 *خلاصه:*\n' +
-      'برای آمار کامل از `/stats` استفاده کنید.',
-      { parse_mode: 'Markdown' }
-    )
+      await ctx.reply(
+        '📈 *فعالیت اخیر*\n\n' +
+        '*۲۴ ساعت گذشته:*\n' +
+        `• 📨 ${notifications24h} اعلان ارسال شده\n` +
+        `• 🔔 ${newWatches24h} اعلان جدید ایجاد شده\n` +
+        `• 👥 ${newUsers24h} کاربر جدید\n\n` +
+        '*۱ ساعت گذشته:*\n' +
+        `• 📨 ${notifications1h} اعلان ارسال شده\n\n` +
+        '📊 *خلاصه:*\n' +
+        'برای آمار کامل از `/stats` استفاده کنید.',
+        { parse_mode: 'Markdown' }
+      )
+      console.log('✅ /activity command completed')
+    } catch (error) {
+      console.error('❌ Error in /activity:', error)
+      await ctx.reply('❌ خطا در دریافت فعالیت اخیر. لطفاً بعداً تلاش کنید.')
+    }
   })
 
   console.log('✅ Bot instance created with all handlers registered')
