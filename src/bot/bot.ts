@@ -810,14 +810,7 @@ export async function createBot() {
 
   bot.command('stats', async (ctx) => {
     const userId = ctx.from?.id
-    console.log(`🔍 /stats - User ID: ${userId}, Type: ${typeof userId}`)
-    console.log(`🔍 /stats - ADMIN_IDS: ${Array.from(CONFIG.ADMIN_IDS)}`)
-    console.log(`🔍 /stats - isAdmin result: ${isAdmin(ctx)}`)
-    
-    if (!isAdmin(ctx)) {
-      await ctx.reply('⛔️ شما دسترسی ادمین ندارید.')
-      return
-    }
+    console.log(`🔍 /stats - User ID: ${userId}`)
     
     try {
       console.log('📊 /stats command started')
@@ -1007,8 +1000,6 @@ export async function createBot() {
   })
 
   bot.command('users', async (ctx) => {
-    if (!isAdmin(ctx)) return
-
     try {
       console.log('👥 /users command started')
       const totalUsers = await getTotalUsersCount()
@@ -1044,8 +1035,6 @@ export async function createBot() {
   })
 
   bot.command('watches', async (ctx) => {
-    if (!isAdmin(ctx)) return
-
     try {
       console.log('🔔 /watches command started')
       const totalActive = await getTotalActiveWatchesCount()
@@ -1094,8 +1083,6 @@ export async function createBot() {
   })
 
   bot.command('activity', async (ctx) => {
-    if (!isAdmin(ctx)) return
-
     try {
       console.log('📈 /activity command started')
       const notifications24h = await getNotificationsCountSince(24)
