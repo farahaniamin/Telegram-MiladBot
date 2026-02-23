@@ -1151,6 +1151,13 @@ export async function createBot() {
     }
   })
 
+  // Simple ping command for testing
+  bot.command('ping', async (ctx) => {
+    console.log(`🏓 /ping received from user ${ctx.from?.id}`)
+    await ctx.reply('🏓 Pong! Bot is working.')
+  })
+
   console.log('✅ Bot instance created with all handlers registered')
+  console.log('📋 Registered commands: start, help, mywatches, admin_help, status, stats, interval, pause, resume, seed, setcode, proxy, worker, netstatus, users, watches, activity, debug, ping')
   return bot
 }

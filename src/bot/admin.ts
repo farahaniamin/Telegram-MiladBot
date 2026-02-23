@@ -4,7 +4,15 @@ import { isLocalProxyEnabled, isApiWorkerEnabled, setLocalProxyEnabled, setApiWo
 
 export function isAdmin(ctx: Context): boolean {
   const id = ctx.from?.id
-  return !!id && CONFIG.ADMIN_IDS.has(id)
+  if (!id) return false
+  
+  // Convert to string for reliable comparison (handles large IDs)
+  const idStr = String(id)
+  const adminIdsStr = Array.from(CONFIG.ADMIN_IDS).map(String)
+  
+  console.log(`🔍 isAdmin check: userId=${idStr}, adminIds=[${adminIdsStr.join(', ')}]`)
+  
+  return adminIdsStr.includes(idStr)
 }
 
 export async function getProxyStatus(): Promise<string> {
