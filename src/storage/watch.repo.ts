@@ -182,3 +182,81 @@ export async function getNotificationHistory(watchId: number): Promise<Array<{
   `, [watchId])
   return rows as any
 }
+
+export async function getTotalActiveWatchesCount(): Promise<number> {
+  const row = await db.get('SELECT COUNT(*) as count FROM watches WHERE active = 1')
+  return row?.count ?? 0
+}
+
+export async function getTotalNotificationsCount(): Promise<number> {
+  const row = await db.get('SELECT COUNT(*) as count FROM watch_history')
+  return row?.count ?? 0
+}
+
+export async function getNotificationsCountSince(sinceHours: number): Promise<number> {
+  const sinceTimestamp = Math.floor(Date.now() / 1000) - (sinceHours * 3600)
+  const row = await db.get(
+    'SELECT COUNT(*) as count FROM watch_history WHERE notified_at > $1',
+    [sinceTimestamp]
+  )
+  return row?.count ?? 0
+}
+
+export async function getUserResponsesStats(): Promise<{
+  booked: number
+  continue: number
+  stop: number
+  noResponse: number
+}> {
+  const rows = await db.all(`
+    SELECT 
+      user_response as "userResponse",
+      COUNT(*) as count
+    FROM watch_history
+    WHERE user_response IS NOT NULL
+    GROUP BY user_response
+  `) as any[]
+
+  const stats = { booked: 0, continue: 0, stop: 0, noResponse: 0 }
+  for (const row of rows) {
+    if (row.userResponse === 'booked') stats.booked = row.count
+    else if (row.userResponse === 'continue') stats.continue = row.count
+    else if (row.userResponse === 'stop') stats.stop = row.count
+  }
+
+  const noResponseRow = await db.get(
+    'SELECT COUNT(*) as count FROM watch_history WHERE user_response IS NULL'
+  )
+  stats.noResponse = noResponseRow?.count ?? 0
+
+  return stats
+}
+
+export async function getTopInfirmariesByWatches(limit: number = 10): Promise<Array<{
+  infirmaryId: number
+  title: string
+  watchCount: number
+}>> {
+  const rows = await db.all(`
+    SELECT 
+      w.infirmary_id as "infirmaryId",
+      i.title as "title",
+      COUNT(*) as "watchCount"
+    FROM watches w
+    JOIN infirmaries i ON w.infirmary_id = i.id
+    WHERE w.active = 1
+    GROUP BY w.infirmary_id, i.title
+    ORDER BY COUNT(*) DESC
+    LIMIT $1
+  `, [limit])
+  return rows as any
+}
+
+export async function getWatchesCreatedSince(sinceHours: number): Promise<number> {
+  const sinceTimestamp = Math.floor(Date.now() / 1000) - (sinceHours * 3600)
+  const row = await db.get(
+    'SELECT COUNT(*) as count FROM watches WHERE created_at > $1',
+    [sinceTimestamp]
+  )
+  return row?.count ?? 0
+}
