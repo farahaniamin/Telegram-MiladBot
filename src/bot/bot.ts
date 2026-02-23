@@ -240,7 +240,16 @@ export async function createBot() {
 
     if (!inf.code) {
       await ctx.answerCallbackQuery({ text: 'این درمانگاه هنوز کد ندارد (ادمین باید تکمیل کند).' })
-      await ctx.reply(`این درمانگاه هنوز تنظیم نشده: ${inf.title}\n\nاگر ادمین هستی از /setcode استفاده کن.`)
+      await ctx.editMessageText(
+        `⚠️ *درمانگاه تنظیم نشده*\n\n` +
+        `🏥 ${inf.title}\n\n` +
+        `این درمانگاه هنوز کد ندارد.\n` +
+        `اگر ادمین هستی از /setcode استفاده کن.`,
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: mainMenuKeyboard()
+        }
+      )
       return
     }
 
