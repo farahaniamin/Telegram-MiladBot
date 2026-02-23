@@ -553,13 +553,21 @@ export async function createBot() {
     if (!uid) return
     await ctx.answerCallbackQuery({ text: 'درمانگاه‌ها' })
     const kb = await infirmaryKeyboard(uid)
-    await ctx.editMessageText(
-      '🏥 *لیست درمانگاه‌های موجود:*\n\nدرمانگاه مورد نظر خود را انتخاب کنید:', 
-      { 
-        parse_mode: 'Markdown',
-        reply_markup: kb 
+    try {
+      await ctx.editMessageText(
+        '🏥 *لیست درمانگاه‌های موجود:*\n\nدرمانگاه مورد نظر خود را انتخاب کنید:', 
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: kb 
+        }
+      )
+    } catch (err: any) {
+      if (err?.description?.includes('message is not modified')) {
+        // Ignore this error - content is the same
+        return
       }
-    )
+      throw err
+    }
   })
 
   bot.callbackQuery('action:show_cancel', async (ctx) => {
@@ -1115,25 +1123,30 @@ export async function createBot() {
   })
 
   bot.command('debug', async (ctx) => {
-    const userId = ctx.from?.id
-    const isUserAdmin = isAdmin(ctx)
-    const adminIds = Array.from(CONFIG.ADMIN_IDS)
-    
-    console.log('🔧 /debug command executed')
-    console.log(`   User ID: ${userId} (type: ${typeof userId})`)
-    console.log(`   isAdmin: ${isUserAdmin}`)
-    console.log(`   ADMIN_IDS: ${adminIds}`)
-    console.log(`   ADMIN_IDS types: ${adminIds.map(id => typeof id)}`)
-    
-    await ctx.reply(
-      '🔧 *اطلاعات دیباگ*\n\n' +
-      `🆔 شناسه کاربر: \`${userId}\`\n` +
-      `📊 تعداد ادمین‌ها: ${adminIds.length}\n` +
-      `📝 لیست ادمین‌ها: ${adminIds.join(', ') || '(خالی)'}\n` +
-      `✅ وضعیت شما: ${isUserAdmin ? '✅ ادمین هستید' : '⛔️ ادمین نیستید'}\n\n` +
-      '_این اطلاعات برای عیب‌یابی است._',
-      { parse_mode: 'Markdown' }
-    )
+    try {
+      const userId = ctx.from?.id
+      const isUserAdmin = isAdmin(ctx)
+      const adminIds = Array.from(CONFIG.ADMIN_IDS)
+      
+      console.log('🔧 /debug command executed')
+      console.log(`   User ID: ${userId} (type: ${typeof userId})`)
+      console.log(`   isAdmin: ${isUserAdmin}`)
+      console.log(`   ADMIN_IDS: ${adminIds}`)
+      console.log(`   ADMIN_IDS types: ${adminIds.map(id => typeof id)}`)
+      
+      await ctx.reply(
+        '🔧 *اطلاعات دیباگ*\n\n' +
+        `🆔 شناسه کاربر: \`${userId}\`\n` +
+        `📊 تعداد ادمین‌ها: ${adminIds.length}\n` +
+        `📝 لیست ادمین‌ها: ${adminIds.join(', ') || '(خالی)'}\n` +
+        `✅ وضعیت شما: ${isUserAdmin ? '✅ ادمین هستید' : '⛔️ ادمین نیستید'}\n\n` +
+        '_این اطلاعات برای عیب‌یابی است._',
+        { parse_mode: 'Markdown' }
+      )
+    } catch (err) {
+      console.error('❌ Error in /debug:', err)
+      await ctx.reply('❌ خطا در دستور debug')
+    }
   })
 
   console.log('✅ Bot instance created with all handlers registered')
