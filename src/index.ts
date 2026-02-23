@@ -77,6 +77,7 @@ async function bootstrap() {
         {
           parse_mode: 'Markdown',
           reply_markup: new InlineKeyboard()
+            .url('🔗 ورود به صفحه نوبت دهی', 'https://miladhospital.com/onlineReception').row()
             .text('✅ ادامه اعلان‌دهی', `smart_watch:keep:${infirmaryTitle}`).row()
             .text('❌ غیرفعال کردن', `smart_watch:deactivate:${infirmaryTitle}`)
         }

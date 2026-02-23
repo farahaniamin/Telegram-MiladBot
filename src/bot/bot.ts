@@ -307,7 +307,16 @@ export async function createBot() {
           }
         )
       } else {
-        await ctx.reply(formatTimingMessage(inf.title, res))
+        await ctx.reply(
+          formatTimingMessage(inf.title, res),
+          {
+            reply_markup: new InlineKeyboard()
+              .url('🔗 ورود به صفحه نوبت دهی', 'https://miladhospital.com/onlineReception')
+              .row()
+              .text('🔙 بازگشت', 'action:back')
+              .text('🏠 منوی اصلی', 'action:main_menu')
+          }
+        )
       }
     } catch (err) {
       await handleError(ctx, err, 'search')
@@ -403,6 +412,8 @@ export async function createBot() {
           formatTimingMessage(inf.title, res),
           {
             reply_markup: new InlineKeyboard()
+              .url('🔗 ورود به صفحه نوبت دهی', 'https://miladhospital.com/onlineReception')
+              .row()
               .text('🔙 بازگشت', 'action:back')
               .text('🏠 منوی اصلی', 'action:main_menu')
           }
