@@ -1135,6 +1135,7 @@ export async function createBot() {
       console.log(`   ADMIN_IDS: ${adminIds}`)
       console.log(`   ADMIN_IDS types: ${adminIds.map(id => typeof id)}`)
       
+      // TEMPORARY: Show debug info for all users to troubleshoot
       await ctx.reply(
         '🔧 *اطلاعات دیباگ*\n\n' +
         `🆔 شناسه کاربر: \`${userId}\`\n` +

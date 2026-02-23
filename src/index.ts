@@ -113,6 +113,7 @@ async function bootstrap() {
   try {
     await bot.start({
       allowed_updates: ['message', 'callback_query'],
+      drop_pending_updates: true,
       onStart: (botInfo) => {
         console.log(`✅ Bot @${botInfo.username} started successfully`)
         console.log(`🤖 Bot ID: ${botInfo.id}`)
